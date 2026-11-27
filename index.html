@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="theme-color" content="#0a0616" />
+    <meta name="description" content="신비한 알을 뽑아 보세요. 8종의 신비한 알을 모으는 미스터리 에그 가챠 룰렛." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>신비한 알 뽑기 · 미스터리 에그</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%9A%3C/text%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <div class="backdrop" aria-hidden="true">
+        <div class="aura" id="aura"></div>
+        <div class="vignette"></div>
+      </div>
+
+      <canvas id="fx" class="fx" aria-hidden="true"></canvas>
+
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">🥚</span>
+          <div class="brand-text">
+            <h1>신비한 알 뽑기</h1>
+            <p>MYSTERY EGG GACHA</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button id="soundBtn" class="icon-btn" type="button" aria-label="소리 끄기" aria-pressed="true">
+            <span class="ico-on">🔊</span><span class="ico-off">🔇</span>
+          </button>
+          <button id="dexBtn" class="dex-btn" type="button" aria-haspopup="dialog">
+            <span>도감</span><span class="dex-num"><b id="dexCount">0</b><i>/8</i></span>
+          </button>
+        </div>
+      </header>
+
+      <main class="stage" id="stage">
+        <div class="banner" id="banner" role="status" aria-live="polite">
+          <span class="btxt" id="bannerText">행운을 빌어요!</span>
+        </div>
+
+        <div class="roulette" id="roulette">
+          <div class="track" id="track"></div>
+          <div class="center-frame" id="centerFrame" aria-hidden="true">
+            <span class="corner tl"></span><span class="corner tr"></span>
+            <span class="corner bl"></span><span class="corner br"></span>
+          </div>
+          <div class="marker marker-top" aria-hidden="true"></div>
+          <div class="marker marker-bottom" aria-hidden="true"></div>
+        </div>
+
+        <p class="mini-odds" id="miniOdds"></p>
+        <div class="results" id="results" aria-live="polite"></div>
+      </main>
+
+      <section class="controls">
+        <div class="stats">
+          <span class="stat"><em id="pullCount">0</em>회 뽑기</span>
+          <span class="dot"></span>
+          <span class="stat">발견 <em id="foundCount">0</em><i>/8</i></span>
+        </div>
+        <div class="btns">
+          <button id="pull1" class="btn btn-primary" type="button">
+            <span class="btn-label">1회 뽑기</span>
+            <span class="btn-sub">한 번에 한 알</span>
+          </button>
+          <button id="pull5" class="btn btn-secondary" type="button">
+            <span class="btn-label">5연속 뽑기</span>
+            <span class="btn-sub">연속 5회</span>
+          </button>
+        </div>
+        <p class="hint" id="hint">알을 뽑으면 도감에 기록돼요</p>
+      </section>
+
+      <div class="sheet-backdrop" id="sheetBackdrop"></div>
+      <aside class="sheet" id="dex" role="dialog" aria-modal="true" aria-labelledby="dexTitle" aria-hidden="true">
+        <div class="sheet-grab" id="sheetGrab" aria-hidden="true"></div>
+        <div class="sheet-head">
+          <div>
+            <h2 id="dexTitle">알 도감</h2>
+            <p id="dexSummary">발견 0 / 8 · 총 0회</p>
+          </div>
+          <button id="dexClose" class="icon-btn close" type="button" aria-label="도감 닫기">✕</button>
+        </div>
+        <div class="dex-grid" id="dexGrid"></div>
+        <div class="dex-foot">
+          <p class="odds" id="odds"></p>
+          <button id="resetBtn" class="reset-btn" type="button">기록 초기화</button>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

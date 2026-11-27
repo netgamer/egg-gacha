@@ -1,0 +1,7 @@
+node_modules/
+dist/
+assets-src/
+*.log
+.DS_Store
+shots/tmp-*
+shots/z*.png
