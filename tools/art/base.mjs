@@ -66,16 +66,31 @@ export const ELEMENT_KO = {
 
 /* ------------------------------------------------------------------ paths -- */
 
+/**
+ * Silhouette design notes
+ * ----------------------
+ * The head is a broad, soft jaw (not a pointy chin) so it can cover the whole
+ * torso neck: at every height where both shapes exist the head is wider than
+ * the torso, which is what keeps the torso outline from cutting across the
+ * chin. The torso neck is narrow (≈66px) and the shoulders fall away steeply
+ * from behind the jaw, so the only visible seam is a single chin line.
+ *
+ * Ears are drawn before the head (so the head's opaque fill hides their roots)
+ * and their outline is left untouched, while the head's outline is masked out
+ * wherever an ear sits — the two strokes meet exactly on the ear edge instead
+ * of crossing.
+ */
 export const P = {
   torso:
-    'M158 512 C148 454 154 376 186 334 C208 306 232 298 256 298 ' +
-    'C280 298 304 306 326 334 C358 376 364 454 354 512 Z',
+    'M158 512 C148 454 152 382 176 346 C192 324 212 310 224 300 ' +
+    'L288 300 C300 310 320 324 336 346 C360 382 364 454 354 512 Z',
   head:
-    'M256 94 C317 94 357 136 360 188 C362 228 347 262 321 284 ' +
-    'C298 303 274 311 255 311 C230 311 199 300 178 280 C155 258 145 226 148 188 ' +
-    'C151 136 197 94 256 94 Z',
-  earL: 'M164 192 C146 174 136 148 140 122 C158 138 174 160 180 184 Z',
-  earR: 'M348 192 C366 174 376 148 372 122 C354 138 338 160 332 184 Z',
+    'M256 94 C317 94 357 136 360 188 C362 230 350 262 330 284 ' +
+    'C316 302 300 311 284 313 C276 314 268 314 256 314 ' +
+    'C244 314 236 314 228 313 C212 311 196 302 182 284 ' +
+    'C162 262 150 230 148 188 C151 136 197 94 256 94 Z',
+  earL: 'M170 201 C150 181 138 150 136 116 C156 134 176 152 196 172 C200 186 190 199 170 201 Z',
+  earR: 'M342 201 C362 181 374 150 376 116 C356 134 336 152 316 172 C312 186 322 199 342 201 Z',
   belly:
     'M206 330 C236 312 276 312 306 330 C320 398 318 464 306 512 ' +
     'L206 512 C194 464 192 398 206 330 Z',
@@ -139,21 +154,35 @@ export const bodyShapes = (attrs = '') =>
   `<path d="${P.earL}" ${attrs}/><path d="${P.earR}" ${attrs}/>` +
   `<path d="${P.head}" ${attrs}/>`;
 
+/** Outline pass: soft dark halo + silhouette line + inner line, for one shape. */
+const outlineOf = (uid, pal, d, mask = '') =>
+  `<g${mask ? ` mask="url(#${mask})"` : ''} fill="none" stroke-linejoin="round">` +
+  `<g stroke="#0B0616" stroke-width="9" opacity="0.28" filter="url(#${uid}-rimBlur)"><path d="${d}"/></g>` +
+  `<g stroke="${pal.line}" stroke-width="4" opacity="0.9"><path d="${d}"/></g>` +
+  `<g stroke="#0B0616" stroke-width="1.8" opacity="0.4"><path d="${d}"/></g>` +
+  `</g>`;
+
 /* ------------------------------------------------------------ body render -- */
 
 /**
  * Draws the shared dragon anatomy in a material palette.
- *  cfg.texture(uid)  – tiled pattern painted above the skin, clipped to body
+ *  cfg.texture(uid)  – tiled pattern painted above the skin, clipped to the shape
  *  cfg.overlay(uid)  – extra effects painted above the belly (cracks, glow…)
  *  cfg.sheen         – 'gloss' | 'matte' | 'crystal'
  *  cfg.belly         – tint the belly
  *  cfg.muzzle        – muzzle fill colour
+ *
+ * Paint order is torso → ears → head, each as its own opaque, clipped base.
+ * The head therefore covers the torso's top edge (no torso stroke under the
+ * chin) and the ear roots (no head stroke across the ears).
  */
 export function renderBody(cfg) {
   const { uid, pal } = cfg;
   const sheen = cfg.sheen || 'gloss';
   const muzzle = cfg.muzzle || pal.belly;
-  const clip = `${uid}-bc`;
+  const tClip = `${uid}-tc`;
+  const hClip = `${uid}-hc`;
+  const eClip = `${uid}-ec`;
   const defs = [
     rad(`${uid}-skin`, [
       [0, pal.light],
@@ -175,7 +204,17 @@ export function renderBody(cfg) {
     blurDef(`${uid}-soft2`, 5),
     blurDef(`${uid}-rimBlur`, 5),
     blurDef(`${uid}-drop`, 16, 30),
-    `<clipPath id="${clip}">${bodyShapes()}</clipPath>`,
+    `<clipPath id="${tClip}"><path d="${P.torso}"/></clipPath>`,
+    `<clipPath id="${hClip}"><path d="${P.head}"/></clipPath>`,
+    `<clipPath id="${eClip}"><path d="${P.earL}"/><path d="${P.earR}"/></clipPath>`,
+    // ears sit on top of the head, so their outline is clipped to everything
+    // outside the head silhouette: the two outlines meet instead of crossing
+    `<mask id="${uid}-earM" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">` +
+      `<rect width="512" height="512" fill="#fff"/>` +
+      `<path d="${P.head}" fill="#000" stroke="#000" stroke-width="1.8"/></mask>`,
+    lin(`${uid}-rimFade`, [[0, '#FFF', 1], [0.52, '#FFF', 1], [0.78, '#FFF', 0]]),
+    `<mask id="${uid}-headRim" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">` +
+      `<rect width="512" height="512" fill="url(#${uid}-rimFade)"/></mask>`,
   ].join('');
 
   const texture = cfg.texture ? cfg.texture(uid) : '';
@@ -205,12 +244,11 @@ export function renderBody(cfg) {
   <g opacity="0.4" filter="url(#${uid}-drop)">
     <g transform="translate(6 10)" fill="#07030F">${bodyShapes()}</g>
   </g>
-  <g clip-path="url(#${clip})">
+  <!-- torso (opaque, first: the head silhouette covers its top edge) -->
+  <g clip-path="url(#${tClip})">
     <rect width="512" height="512" fill="url(#${uid}-skin)"/>
-    <ellipse cx="242" cy="126" rx="112" ry="72" fill="${pal.light}" opacity="${sheen === 'matte' ? 0.32 : 0.5}" filter="url(#${uid}-soft)"/>
     <ellipse cx="300" cy="470" rx="190" ry="120" fill="${pal.deep}" opacity="0.5" filter="url(#${uid}-soft)"/>
     <ellipse cx="140" cy="330" rx="56" ry="120" fill="${pal.dark}" opacity="0.35" filter="url(#${uid}-soft)"/>
-    ${scales}
     ${texture}
     ${cfg.belly === false ? '' : `
     <path d="${P.belly}" fill="url(#${uid}-bellyG)" opacity="0.94"/>
@@ -222,17 +260,27 @@ export function renderBody(cfg) {
       <path d="M212 470 Q256 458 300 470"/>
     </g>`}
     ${overlay}
-    <ellipse cx="256" cy="302" rx="92" ry="30" fill="${pal.deep}" opacity="0.5" filter="url(#${uid}-soft2)"/>
-    <path d="M166 184 C154 168 148 150 150 134 C162 148 172 164 176 180 Z" fill="${pal.dark}" opacity="0.35"/>
-    <path d="M346 184 C358 168 364 150 362 134 C350 148 340 164 336 180 Z" fill="${pal.deep}" opacity="0.3"/>
+    <ellipse cx="256" cy="324" rx="96" ry="26" fill="${pal.deep}" opacity="0.4" filter="url(#${uid}-soft2)"/>
+    <path d="${P.torso}" fill="${pal.deep}" opacity="0.1"/>
     <path d="${P.torso}" fill="url(#${uid}-rim)" opacity="0.5" style="mix-blend-mode:screen"/>
     <path d="${P.torso}" fill="none" stroke="${pal.light}" stroke-width="5" opacity="0.32" filter="url(#${uid}-rimBlur)"/>
-    <path d="${P.head}" fill="none" stroke="${pal.light}" stroke-width="4.5" opacity="0.3" filter="url(#${uid}-rimBlur)"/>
-    <ellipse cx="200" cy="146" rx="46" ry="26" fill="${pal.light}" opacity="0.3" filter="url(#${uid}-soft2)"/>
-    <!-- head / torso separation -->
-    <path d="${P.torso}" fill="${pal.deep}" opacity="0.1"/>
+    <g fill="none" stroke="${pal.line}" stroke-width="1.6" opacity="0.32">
+      <path d="M208 326 C232 314 280 314 304 326"/>
+      <path d="M212 470 C236 484 276 484 300 470"/>
+    </g>
+  </g>
+  ${outlineOf(uid, pal, P.torso)}
+  <!-- head (opaque over the torso; outline stops at the ear roots) -->
+  <g clip-path="url(#${hClip})">
+    <rect width="512" height="512" fill="url(#${uid}-skin)"/>
+    <ellipse cx="242" cy="126" rx="112" ry="72" fill="${pal.light}" opacity="${sheen === 'matte' ? 0.32 : 0.5}" filter="url(#${uid}-soft)"/>
+    ${scales}
+    ${texture}
+    ${overlay}
     <path d="${P.head}" fill="${pal.light}" opacity="0.12"/>
-    <path d="M174 314 Q256 350 338 310" fill="none" stroke="${pal.deep}" stroke-width="18" opacity="0.34" filter="url(#${uid}-soft2)" stroke-linecap="round"/>
+    <g mask="url(#${uid}-earM)"><g mask="url(#${uid}-headRim)"><path d="${P.head}" fill="none" stroke="${pal.light}" stroke-width="4.5" opacity="0.3" filter="url(#${uid}-rimBlur)"/></g></g>
+    <ellipse cx="200" cy="146" rx="46" ry="26" fill="${pal.light}" opacity="0.3" filter="url(#${uid}-soft2)"/>
+    <ellipse cx="256" cy="304" rx="86" ry="22" fill="${pal.deep}" opacity="0.22" filter="url(#${uid}-soft2)"/>
     <!-- snout -->
     <path d="M253 206 L253 252" stroke="${pal.light}" stroke-width="13" opacity="0.45" stroke-linecap="round" filter="url(#${uid}-soft2)"/>
     <ellipse cx="253" cy="255" rx="51" ry="38" fill="${pal.deep}" opacity="0.28" filter="url(#${uid}-soft2)"/>
@@ -251,19 +299,21 @@ export function renderBody(cfg) {
     <ellipse cx="200" cy="150" rx="30" ry="12" fill="#fff" opacity="${sheen === 'matte' ? 0.2 : sheen === 'crystal' ? 0.42 : 0.28}" transform="rotate(-16 200 150)"/>
     <ellipse cx="188" cy="132" rx="9" ry="5" fill="#fff" opacity="0.5" transform="rotate(-18 188 132)"/>
   </g>
-  <g fill="none" stroke="#0B0616" stroke-width="9" opacity="0.28" stroke-linejoin="round" filter="url(#${uid}-rimBlur)">
-    ${bodyShapes()}
+  ${outlineOf(uid, pal, P.head)}  <!-- ears (on top of the head so their roots cover the head outline) -->
+  <g clip-path="url(#${eClip})">
+    <rect width="512" height="512" fill="url(#${uid}-skin)"/>
+    <ellipse cx="242" cy="126" rx="112" ry="72" fill="${pal.light}" opacity="${sheen === 'matte' ? 0.32 : 0.5}" filter="url(#${uid}-soft)"/>
+    ${texture}
+    ${overlay}
+    <path d="${P.head}" fill="${pal.light}" opacity="0.12"/>
+    <path d="${P.head}" fill="none" stroke="#0B0616" stroke-width="9" opacity="0.28" filter="url(#${uid}-rimBlur)"/>
+    <path d="M168 192 C152 172 142 148 142 124 C154 140 168 158 182 176 C186 186 178 194 168 192 Z" fill="${pal.dark}" opacity="0.30"/>
+    <path d="M344 192 C360 172 370 148 370 124 C358 140 344 158 330 176 C326 186 334 194 344 192 Z" fill="${pal.deep}" opacity="0.28"/>
+    <path d="M146 186 C138 160 136 140 138 120" fill="none" stroke="${pal.light}" stroke-width="2.2" opacity="0.34" filter="url(#${uid}-rimBlur)" stroke-linecap="round"/>
+    <path d="M366 186 C374 160 376 140 374 120" fill="none" stroke="${pal.light}" stroke-width="2" opacity="0.26" filter="url(#${uid}-rimBlur)" stroke-linecap="round"/>
   </g>
-  <g fill="none" stroke="${pal.line}" stroke-width="4" opacity="0.9" stroke-linejoin="round">
-    ${bodyShapes()}
-  </g>
-  <g fill="none" stroke="#0B0616" stroke-width="1.8" opacity="0.4" stroke-linejoin="round">
-    ${bodyShapes()}
-  </g>
-  <g fill="none" stroke="${pal.line}" stroke-width="1.6" opacity="0.32">
-    <path d="M206 322 C232 308 280 308 306 322"/>
-    <path d="M212 470 C236 484 276 484 300 470"/>
-  </g>`;
+  ${outlineOf(uid, pal, `${P.earL}${P.earR}`, `${uid}-earM`)}
+`;
   return { defs, body };
 }
 
