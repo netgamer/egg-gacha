@@ -38,6 +38,22 @@ function cv(w, h) {
   return c;
 }
 
+// A card needs eight intermediate canvases. Allocating them per hatch churns
+// tens of MB on a phone, so they are pooled by size and role and only cleared.
+const scratch = new Map();
+function scratchCanvas(role, w, h) {
+  const key = `${role}@${Math.round(w)}x${Math.round(h)}`;
+  let c = scratch.get(key);
+  if (!c || c.width !== Math.round(w) || c.height !== Math.round(h)) {
+    c = cv(w, h);
+    scratch.set(key, c);
+    while (scratch.size > 16) scratch.delete(scratch.keys().next().value);
+  } else {
+    c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  }
+  return c;
+}
+
 function loadImage(url) {
   if (imgCache.has(url)) {
     const hit = imgCache.get(url);
@@ -79,8 +95,8 @@ export function preloadDragonArt(dragon, base) {
 
 /* ------------------------------------------------------------------ passes */
 
-function blurred(src, w, h, px) {
-  const c = cv(w, h);
+function blurred(src, w, h, px, role = 'blur') {
+  const c = scratchCanvas(role, w, h);
   const x = c.getContext('2d');
   if (FILTER_OK) x.filter = `blur(${px}px)`;
   x.imageSmoothingQuality = 'high';
@@ -89,8 +105,8 @@ function blurred(src, w, h, px) {
 }
 
 /** The layer's own alpha as a white mask (optionally blurred). */
-function alphaMask(img, w, h, blurPx = 0) {
-  const c = cv(w, h);
+function alphaMask(img, w, h, blurPx = 0, role = 'alpha') {
+  const c = scratchCanvas(role, w, h);
   const x = c.getContext('2d');
   if (blurPx && FILTER_OK) x.filter = `blur(${blurPx}px)`;
   x.drawImage(img, 0, 0, w, h);
@@ -102,8 +118,8 @@ function alphaMask(img, w, h, blurPx = 0) {
   return c;
 }
 
-function masked(src, mask) {
-  const c = cv(src.width, src.height);
+function masked(src, mask, role = 'masked') {
+  const c = scratchCanvas(role, src.width, src.height);
   const x = c.getContext('2d');
   x.drawImage(src, 0, 0);
   x.globalCompositeOperation = 'destination-in';
@@ -111,8 +127,8 @@ function masked(src, mask) {
   return c;
 }
 
-function subtract(a, b) {
-  const c = cv(a.width, a.height);
+function subtract(a, b, role = 'sub') {
+  const c = scratchCanvas(role, a.width, a.height);
   const x = c.getContext('2d');
   x.drawImage(a, 0, 0);
   x.globalCompositeOperation = 'destination-out';
@@ -153,7 +169,7 @@ function grain(w, h) {
     x.putImageData(img, 0, 0);
     grainTile = t;
   }
-  const c = cv(w, h);
+  const c = scratchCanvas('grain', w, h);
   const x = c.getContext('2d');
   const pat = x.createPattern(grainTile, 'repeat');
   x.fillStyle = pat;
@@ -191,37 +207,37 @@ export function composeInto(target, layers, { finish = true, grain: useGrain = t
   if (!finish || !FILTER_OK || !bySlot.body) return true;
 
   // ---- environment light taken from the plate ------------------------------
-  const env = blurred(bySlot.bg, w, h, Math.max(2, w * 0.03));
-  const bodyCrisp = alphaMask(bySlot.body, w, h, 0);
-  const bodySoft = alphaMask(bySlot.body, w, h, Math.max(1.5, w * 0.006));
+  const env = blurred(bySlot.bg, w, h, Math.max(2, w * 0.03), 'env');
+  const bodyCrisp = alphaMask(bySlot.body, w, h, 0, 'bodyCrisp');
+  const bodySoft = alphaMask(bySlot.body, w, h, Math.max(1.5, w * 0.006), 'bodySoft');
 
-  const band = subtract(bodySoft, bodyCrisp);            // halo outside the body
-  const rim = masked(env, band);
+  const band = subtract(bodySoft, bodyCrisp, 'band');    // halo outside the body
+  const rim = masked(env, band, 'rim');
   drawPass(ctx, rim, 'screen', 0.42);
 
   const wrapMask = (() => {
-    const c = cv(w, h);
+    const c = scratchCanvas('wrapMask', w, h);
     const x = c.getContext('2d');
     x.fillStyle = '#fff';
     x.fillRect(0, 0, w, h);
     x.globalCompositeOperation = 'destination-out';
-    x.drawImage(blurred(alphaMask(bySlot.body, w, h, 0), w, h, Math.max(2, w * 0.012)), 0, 0);
+    x.drawImage(blurred(alphaMask(bySlot.body, w, h, 0, 'bodyCrisp2'), w, h, Math.max(2, w * 0.012), 'bodyBlur'), 0, 0);
     x.globalCompositeOperation = 'destination-in';
     x.drawImage(bodyCrisp, 0, 0);
     return c;
   })();
-  drawPass(ctx, masked(env, wrapMask), 'lighter', 0.34);
+  drawPass(ctx, masked(env, wrapMask, 'wrap'), 'lighter', 0.34);
 
   // ---- one colour of light over the whole bust -----------------------------
   const mean = averageLum(env);
-  const tone = cv(w, h);
+  const tone = scratchCanvas('tone', w, h);
   const tc = tone.getContext('2d');
   tc.filter = `brightness(${Math.min(2.4, 1 / Math.max(0.2, mean))})`;
   tc.drawImage(env, 0, 0);
   drawPass(ctx, tone, 'multiply', 0.30);
 
   // ---- bloom ---------------------------------------------------------------
-  const bloom = cv(w, h);
+  const bloom = scratchCanvas('bloom', w, h);
   const bc = bloom.getContext('2d');
   bc.filter = `brightness(1.55) contrast(1.85) blur(${Math.max(2, w * 0.018)}px)`;
   bc.drawImage(target, 0, 0);
@@ -257,10 +273,10 @@ export function composeInto(target, layers, { finish = true, grain: useGrain = t
 export function composeUrl(layers, w, h, opts = {}) {
   // grade pass: compose into a working canvas, then draw once with the final
   // contrast/saturation so the filter hits every layer equally
-  const work = cv(w, h);
+  const work = scratchCanvas('work', w, h);
   const ok = composeInto(work, layers, opts);
   if (!ok) return '';
-  const out = cv(w, h);
+  const out = scratchCanvas('out', w, h);
   const x = out.getContext('2d');
   if (FILTER_OK) x.filter = 'contrast(1.03) saturate(1.04)';
   x.drawImage(work, 0, 0);
