@@ -1,27 +1,26 @@
 # 🥚 신비한 알 뽑기 — 드래곤 부화 가챠
 
-모바일 우선(Mobile-first) 알 가챠. 8종의 알을 뽑아 부화시키면 **6파츠를 합성한 NFT 스타일 드래곤**이 태어납니다.
+모바일 우선(Mobile-first) 알 가챠. 8종의 알을 뽑아 부화시키면 **6파츠를 합성한 리얼 판타지 드래곤**이 태어납니다.
 바닐라 JS + Canvas2D + Web Audio, 빌드는 Vite. GitHub Pages 하위 경로에서도 그대로 동작합니다.
 
-| 알 부화 | 드래곤 공개 (얼음 알 → 서리 드래곤) |
+| 드래곤 공개 (모바일) | 드래곤 도감 (모바일) |
 | --- | --- |
-| ![hatch](shots/dragon-hatch-egg.png) | ![reveal](shots/dragon-reveal-ice.png) |
+| ![reveal](shots/real-reveal-mobile.png) | ![dex](shots/real-dex-mobile.png) |
 
-| 다이아몬드알 공개 | 드래곤 도감 (모바일) |
+| 12가지 테마 드래곤 | 크로스 테마 조합 8종 |
 | --- | --- |
-| ![diamond](shots/dragon-reveal-diamond.png) | ![gallery](shots/dragon-gallery-mobile.png) |
+| ![themes](shots/proto-real-dragon-themes.png) | ![grid](shots/proto-real-dragon-grid.png) |
 
-| 합성 드래곤 12종 (4×3) |
+| 낱개 파츠 72장 (6슬롯 × 12) |
 | --- |
-| ![grid](shots/dragon-gallery-grid.png) |
+| ![parts](shots/proto-real-dragon-parts.png) |
 
 ## 게임 흐름
 
 1. **알 뽑기** — 3D 카드 룰렛에서 8종의 알 중 하나가 나옵니다.
 2. **알 깨기** — 룰렛이 멈추면 카드 아래 `알 깨기! 🥚💥` 큐가 뜹니다(카드 탭도 가능). 5연속은 5개 모두 대기하며, `다음 알 부화`로 연속 부화할 수 있습니다.
-   - 흔들림(shake) → 금이 가는 크랙 → 광선 버스트 + Web Audio 크랙/파열음 → 드래곤 카드 공개
-3. **드래곤 공개** — 512×512에 6레이어로 합성된 드래곤 + **특성 6개** + **희귀도·속성 배지** + 시리얼.
-4. **도감** — `알 도감`(8칸)과 `드래곤 도감`(NFT 그리드, 탭하면 6특성·알 출처 상세) 두 탭. 모두 `localStorage`에 저장됩니다.
+3. **드래곤 공개** — 4:5 버스트에 6레이어로 합성된 드래곤 + **특성 6개** + **희귀도·속성 배지** + 시리얼.
+4. **도감** — `알 도감`(8칸)과 `드래곤 도감`(4:5 그리드, 탭하면 6특성·알 출처 상세) 두 탭. 모두 `localStorage`에 저장됩니다.
 
 | 등급 | 알 | 확률 |
 | --- | --- | --- |
@@ -32,37 +31,69 @@
 
 ## 🐲 6레이어 드래곤 파츠 시스템
 
-모든 드래곤은 **하나의 정규(chibi) 드래곤 흉상 템플릿**(512×512) 위에 6개 레이어를 뒤→앞으로 합성한 것입니다.
-파츠는 모두 같은 좌표계에서 그려지므로 **어떤 조합이 나와도 어긋남·겹침·뜨는 파츠가 없습니다.**
+모든 드래곤은 **하나의 마스터 앵커 페인팅**(`tools/proto-art/master/base.png`, 1122×1402, 뿔 없는 3/4 버스트)에서
+파생된 6개 레이어를 뒤→앞으로 합성한 것입니다. 모든 파츠가 같은 픽셀 좌표계를 공유하므로
+**어떤 조합이 나와도 어긋남·겹침·뜨는 파츠가 없습니다.**
 
 | 순서 | 슬롯 | 내용 | 파츠 수 |
 | --- | --- | --- | --- |
-| 1 | `bg` | 배경·오라 (상아빛 방, 민트 점판, 고요한 숲, 벚꽃 하늘, 눈 내리는 밤, 불씨 연기, 용암 지대, 빙하 동굴, 에메랄드 숲, 뇌운 폭풍, 황금 신전, 프리즘 광선, 성운 심연, 육각 회로) | 14 |
-| 2 | `wings` | 등 날개 (몽실·박쥐·이파리·꽃잎·거품·불꽃·태양·빙정·뇌전·오로라·천사·메카·다이아 프리즘·은하) | 14 |
-| 3 | `body` | 몸통·머리·주둥이·비늘 — **정규 실루엣 고정** (상아빛·점박이·이끼·에메랄드·마그마·용광로·서리·빙하·폭풍석판·보랏빛 플라스마·24K 황금·면절정 다이아·흑요석 네온·오로라 프리즘) | 14 |
-| 4 | `eyes` | 눈·표정 (다정·사나움·윙크·잉걸불·서리·선글라스·용의 눈·졸린·번개·황금 레이저·별빛·공허·은하·무지개 각성) | 14 |
-| 5 | `head` | 뿔·왕관·고리 (작은 뿔·새싹·니트 비니·꽃 화관·잉걸불 뿔·서리 왕관·폭풍 뿔·번개 볏·황금 왕관·천사 고리·거품 왕관·다이아 티아라·무지개 고리·은하 뿔) | 14 |
-| 6 | `acc` | 목·가슴 장식 (비단 리본·가죽 목걸이·이파리 목도리·도토리 부적·물방울 목도리·잉걸불 펜던트·서리 목걸이·달빛 펜던트·뇌전 사슬·홀로그램 문장·황금 메달·왕실 망토·다이아 코어·오로라 띠) | 14 |
+| 1 | `bg` | 배경 (상아빛 신전, 민트 석호, 이끼 숲, 사암 사막, 화산 칼데라, 빙하 계곡, 진주 해변, 뇌우, 황금 보물고, 폭풍우 바다, 성운, 오로라) | 12 |
+| 2 | `wings` | 날개 (뼈·점박이·이끼·사암·용암·빙정·진주·플라스마·황금깃·폭풍·성운·오팔) | 12 |
+| 3 | `body` | 몸·머리·목 — **마스터 실루엣 고정** (상아빛·점박이·이끼·사암·용암 흑요석·빙하·진주·뇌광·24K 황금·폭풍 강철·다이아·오팔) | 12 |
+| 4 | `eyes` | 눈 (호박·청록·에메랄드·구리·용암·서리·진주·보랏빛·순금·폭풍·은하·오팔) | 12 |
+| 5 | `horns` | 뿔 (뼈·해유리·드리프트우드·사암·바살트·얼음 결정·나전·뇌광·황금 세공·폭풍 강철·흑요석·오팔) | 12 |
+| 6 | `acc` | 목 장식 (뼈 토크·청록 구슬·덩굴·사암·용암 고르제·은빛·진주·플라스마·황금 고르제·쇠사슬·왕실·은세공) | 12 |
 
-**합계 84개 파츠.** 각 파츠는 512×512 투명 WebP(평균 16KB, 전체 1.3MB)이고, 갤러리용 192×192 썸네일 파츠를 따로 두어 도감에서 수십 마리를 열어도 디코드 부담이 없습니다.
+**합계 72개 파츠** = 8개 알 테마(white·spotted·forest·fire·ice·thunder·gold·diamond) + 희귀도 크로스 4종(sandstone·pearl·tempest·opal).
+파츠는 4:5(640×800) 투명 WebP(전체 3.8MB)이고, 갤러리용 192×240 썸네일 파츠를 따로 두어 도감에서 수십 마리를 열어도 부담이 없습니다.
+한 마리 부화에 필요한 6장은 최대 약 470KB입니다.
 
 ### 80% 속성 친화
 
-알의 속성(`white` `spotted` `forest` `fire` `ice` `thunder` `gold` `diamond`)에 대해 **슬롯마다 독립적으로**
-80% 확률로 같은 속성 계열(예: 얼음 ↔ 하양, 불꽃 ↔ 황금) 파츠, 20% 확률로 다른 속성 파츠를 뽑습니다.
+알의 속성(`white` `spotted` `forest` `fire` `ice` `thunder` `golden` `diamond`)에 대해 **슬롯마다 독립적으로**
+80% 확률로 같은 속성 계열(예: 얼음 ↔ 하양, 불꽃 ↔ 황금, 번개 ↔ 황금) 파츠, 20% 확률로 다른 속성 파츠를 뽑습니다.
 뽑힌 풀 안에서는 희귀도 가중치(일반 50 · 희귀 30 · 영웅 15 · 전설 5)로 선택됩니다.
 
 ```
-affinity overall 0.7995 · bg 0.802 wings 0.799 body 0.799 eyes 0.797 head 0.800 acc 0.801 (n=105,600 롤)
+affinity overall 0.7997 · bg 0.802 wings 0.795 body 0.799 eyes 0.804 horns 0.801 acc 0.797 (n=105,600 롤)
 ```
 
 ## 구현 포인트
 
-- **절차적 파츠 아트** — 같은 캔버스 좌표·같은 실루엣 위에 레이어별 SVG를 그리고 Chromium으로 래스터화한 뒤 WebP로 굽습니다(`tools/art/*`). 그라디언트·스케일 텍스처·균열·결정면·네온 발광을 코드로 그려 84개 파츠가 한 세트처럼 보이게 맞췄습니다.
-- **6레이어 합성** — 공개 카드는 6장의 `<img>`를 절대배치로 겹쳐 합성하고, 도감 카드는 같은 합성을 canvas로 한 장(256px)으로 구워 표시합니다.
-- **3D 카드 룰렛** — `perspective` 안의 `translate3d + rotateY + scale` 릴, 가속→감속→스냅. 중앙 슬롯 마커·등급 네온 프레임.
-- **연출** — Canvas 선버스트·번개·파티클·충격파·플래시·셰이크, 부화 크랙 SVG, 등급별 팡파레(Web Audio 합성).
-- **성능/안정성** — 부화 화면이 열리면 아래 룰렛 레이어를 숨겨 합성 예산을 확보하고, 파티클은 단계마다 정리합니다. `prefers-reduced-motion`에서 반복 애니메이션 정지.
+### 1. 마스터 앵커 파이프라인 (`tools/proto-art/`)
+
+- `master/base.png` — 뿔 그루터기를 지운 3/4 버스트 앵커. 모든 파츠의 픽셀 기준.
+- `gen.py` — `images --edit master/base.png`로 슬롯별 변형을 만듭니다. 프롬프트가 포즈·카메라·크롭·조명을 고정하고
+  한 슬롯만 바꾸므로, 변형에서 달라진 픽셀이 곧 그 슬롯의 파츠입니다. 변형마다 실루엣 IoU를 측정해 기록합니다.
+- `pipeline.py` — 변형에서 RGBA 파츠를 깎아내고(`out/layers/`), 6×12 파츠를 640×800 WebP + 192×240 썸네일로 내보내고,
+  `src/dragon-parts.js` 카탈로그를 씁니다. QC(`out/qc.json`)가 빈 파츠·배경 번짐·영역 이탈을 잡아냅니다.
+
+파츠 매트의 핵심은 **"배경을 색으로 판정하지 않는 것"** 입니다. 생성 모델은 회색 판 위에 옅은 그라디언트를 남기고,
+옅은 뿔·날개는 판과 거의 같은 밝기라 색 임계값으로는 절대 갈리지 않습니다.
+
+- `bg_flood()` — 테두리에서 시작해 **엣지를 넘지 못하는** 플러드필로 배경을 찾습니다(그라디언트에 강함).
+- `plate_field()` — 그 배경을 push-pull로 파츠 뒤까지 확장한 "판 예상값"과의 차이로 날개·뿔을 땁니다.
+- `notch` — 턱과 목 사이, 판이 보이는 목구멍 홈은 마스터에서 한 번 찾아 모든 파츠에서 제외합니다.
+- 눈은 검은 소켓과 밝기가 비슷해 차이만으로는 잘리므로 **소켓 타원**을 알파로 쓰고, 번지는 빛만 더합니다.
+- `acc`(목걸이)는 얇은 사슬이 임계값 아래로 사라지지 않게 밴드를 살짝 키운 뒤 변화 픽셀로 되깎습니다.
+
+### 2. 런타임 합성기 (`src/dragon-compose.js`)
+
+프로토타입의 마감 패스를 Canvas2D로 옮겼습니다. 6장을 겹쳐 그린 뒤:
+
+1. **환경 림 라이트 / 라이트 랩** — 배경 판의 빛을 실루엣 바깥 밴드와 안쪽 가장자리에 얹습니다.
+2. **환경 톤 패스** — 배경의 저주파 색을 `multiply`로 전체에 곱해 한 조명 아래로 통일합니다.
+   (불 배경 + 얼음 몸도 같은 빛을 받은 것처럼)
+3. **블룸 · 접지 그림자 · 캔버스 그레인 · 비네트 · 최종 그레이드**.
+
+이 톤 패스 덕분에 크로스 테마(빙하 몸 + 용암 눈 + 황금 뿔 + 진주 목걸이)가 한 그림처럼 붙습니다.
+공개 카드는 합성 결과를 이미지로 구워 보여주고(캔버스 텍스처가 갱신되지 않는 합성기 회피), 도감은 240×300으로 구워 캐시합니다.
+레이어 비트맵은 LRU(18장)로, 카드 이미지는 6장까지만 보관해 5연속 부화에서도 메모리가 쌓이지 않습니다.
+
+### 3. 그 외
+
+- **3D 카드 룰렛** — `perspective` 안의 `translate3d + rotateY + scale` 릴, 가속→감속→스냅.
+- **연출** — Canvas 선버스트·번개·파티클·충격파·플래시·셰이크, 부화 크랙, 등급별 팡파레(Web Audio 합성).
 - **저장** — `egg-gacha.collection.v1`(알), `egg-gacha.dragons.v1`(드래곤, 최대 240), `egg-gacha.pending.v1`(부화 대기 알).
 
 ## 개발
@@ -74,43 +105,22 @@ npm run build    # dist/
 npm test         # 알 가챠 회귀 테스트 (헤드리스)
 npm run dragon   # 파츠·80% 친화·부화·도감 테스트
 npm test:all     # 위 두 개
-npm run parts    # 파츠 84개 재렌더 → public/parts/*.webp + src/dragon-parts.js
 npm run shots:dragon
+npm run live     # 배포본 라이브 검증
 ```
 
-### 테스트 (`tools/test.mjs`, `tools/dragon-test.mjs`)
-
-`dist/`를 로컬 정적 서버로 띄우고 Playwright(Chromium)로 검증합니다. 이 샌드박스의 소프트웨어 렌더러가 무거운 합성에서 간헐적으로 죽기 때문에, 단계(phase)마다 새 브라우저 프로세스를 쓰고 렌더러 크래시는 1회 재시도합니다.
-
-`dragon-test.mjs` 검증 항목:
-
-- 84개 파츠 HTTP 200 · 512×512 디코드 · 썸네일 192×192 · 번들 1.3MB
-- **80% 친화 통계** — 8종 알 × 2,200회 = 105,600롤, 슬롯별 79.7~80.2%, 전체 79.95%
-- 파츠당 희귀도 가중치 일반 > 희귀 > 영웅 > 전설
-- 뽑기 → 큐 → 알 깨기 → 6특성·배지·시리얼 공개 → 저장 → 카운터
-- 5연속 부화(다음 알 연속) 5마리 · 대기 0
-- 새로고침 후 도감 유지 · canvas 썸네일 · 상세 모달 6특성 · 알 출처
-- 모바일/데스크톱 레이아웃(부화 패널·카드 정사각·특성 2열·3열 그리드), 콘솔/페이지/404 오류 0
+### 파츠 아트 재생성
 
 ```bash
-# 실행 (샌드박스 기준 환경변수)
-export PATH=/workspace/.tools/node-v22.23.5-linux-x64/bin:$PATH
-export PLAYWRIGHT_BROWSERS_PATH=/workspace/.tools/pw-browsers
-export LD_LIBRARY_PATH=/workspace/.tools/syslibs
-npm test:all
+cd tools/proto-art
+python3 gen.py                 # 변형 72장 생성 (있는 파일은 skip, -j 4 로 병렬)
+python3 pipeline.py parts      # RGBA 파츠 72개 + WebP/썸네일 + 카탈로그 + QC
+python3 pipeline.py atlas      # 낱개 파츠 콘택트 시트
+python3 pipeline.py mix        # 파츠별로 기본 몸에 얹어 본 시트 (매트 검사)
+python3 pipeline.py sheet      # 테마 12종 + 크로스 8조합 시트
 ```
 
-## 파츠 아트 재생성
-
-```bash
-# 1) tools/art/layers/*.mjs 의 draw() 수정
-# 2) 렌더: build/parts-png/*.png → public/parts/**.webp (512 + 192 썸네일)
-npm run parts
-# 3) 빠른 눈검사용 콘택트 시트 (조합 12개)
-python3 tools/art-sheet.py --seed 7 --out shots/dev-sheet.png
-```
-
-`tools/art/base.mjs`가 정규 드래곤 해부(머리·몸통·주둥이·눈 좌표)를 정의합니다. 파츠를 추가할 때는 이 좌표만 따르면 정렬이 자동으로 맞습니다.
+파츠를 추가하려면 `gen.py`의 `PARTS`/`ART`와 `pipeline.py`의 `PARTS`에 한 줄씩 넣고 두 스크립트를 다시 돌립니다.
 
 ## 폴더 구조
 
@@ -121,16 +131,15 @@ src/
   main.js               화면 조립, 뽑기·부화 시퀀스, 도감
   dragon.js             6슬롯 롤 & 80% 친화, 이름/속성
   dragon-parts.js       (자동생성) 파츠 카탈로그
+  dragon-compose.js     런타임 Canvas 합성기 (톤·림·블룸·비네트)
   dragon-collection.js  드래곤·대기 알 저장
-  dragon-thumb.js       도감용 canvas 합성 썸네일
+  dragon-thumb.js       도감용 4:5 합성 썸네일
   roulette.js · fx.js · audio.js · collection.js · data.js · style.css
   assets/eggs/*.webp
-public/parts/           84 파츠 + thumb/ 192px 썸네일
+public/parts/           72 파츠 + thumb/ 192×240 썸네일
 tools/
-  art/                  절차적 파츠 아트 (base + layers/*)
-  render-parts.mjs      파츠 렌더 → WebP + 카탈로그
-  art-sheet.py          조합 콘택트 시트
-  test.mjs / dragon-test.mjs / dragon-shots.mjs
+  proto-art/            마스터 앵커 · 생성 · 매트/합성 파이프라인
+  test.mjs / dragon-test.mjs / dragon-shots.mjs / live-check.mjs
 shots/                  스크린샷
 ```
 
@@ -140,7 +149,10 @@ shots/                  스크린샷
 
 ```bash
 npm run build
-git subtree push --prefix dist origin gh-pages   # 또는 워크트리로 복사 후 push
+git worktree add -b gh-pages --orphan .tools/tmp/pages   # 또는 기존 gh-pages 재사용
+cp -r dist/. .tools/tmp/pages && touch .tools/tmp/pages/.nojekyll
+git -C .tools/tmp/pages add -A && git -C .tools/tmp/pages commit -m "deploy"
+git -C .tools/tmp/pages push origin gh-pages --force
 ```
 
 → https://netgamer.github.io/egg-gacha/

@@ -13,8 +13,14 @@
     "subpath": "node tools/subpath-test.mjs",
     "test:all": "node tools/test.mjs && node tools/dragon-test.mjs",
     "dragon": "node tools/dragon-test.mjs",
-    "parts": "node tools/render-parts.mjs",
-    "shots:dragon": "node tools/dragon-shots.mjs"
+    "parts": "python3 tools/proto-art/pipeline.py parts",
+    "shots:dragon": "node tools/dragon-shots.mjs",
+    "parts:export": "python3 tools/proto-art/pipeline.py export",
+    "parts:variants": "python3 tools/proto-art/gen.py",
+    "parts:atlas": "python3 tools/proto-art/pipeline.py atlas",
+    "parts:mix": "python3 tools/proto-art/pipeline.py mix",
+    "parts:sheet": "python3 tools/proto-art/pipeline.py sheet",
+    "live": "node tools/live-check.mjs"
   },
   "devDependencies": {
     "playwright": "1.61.1",

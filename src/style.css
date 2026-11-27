@@ -1438,14 +1438,15 @@ body {
 
 .dc-art {
   position: relative;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 5;
   border-radius: 15px;
   overflow: hidden;
   background: #0a0616;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.dc-art img {
+.dc-art img,
+.dc-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1453,6 +1454,16 @@ body {
   display: block;
   -webkit-user-select: none;
   user-select: none;
+}
+
+.dc-canvas {
+  opacity: 0;
+  transition: opacity 0.28s ease;
+  object-fit: cover;
+}
+
+.dc-canvas.ready {
+  opacity: 1;
 }
 
 .dc-shine {
@@ -1697,7 +1708,7 @@ body {
 .dg-art {
   display: block;
   position: relative;
-  aspect-ratio: 1;
+  aspect-ratio: 4 / 5;
   border-radius: 10px;
   overflow: hidden;
   background: #080512;
@@ -1790,6 +1801,17 @@ body {
 
   .egg-wrap {
     height: 300px;
+  }
+
+  /* a 4:5 bust needs more room than the old square card */
+  .hatch-box {
+    width: min(520px, 100%);
+  }
+}
+
+@media (min-width: 1100px) {
+  .dc-name {
+    font-size: 22px;
   }
 }
 

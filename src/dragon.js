@@ -12,14 +12,17 @@ export const AFFINITY = 0.8;
 
 /** Egg element → elements that count as "same affinity". */
 export const ELEMENT_FAMILY = {
+  // keyed by egg id — note the golden egg's id is `golden`, while the golden
+  // *part* element is `gold`
   white: ['white', 'spotted'],
   spotted: ['spotted', 'white', 'forest'],
   forest: ['forest', 'spotted'],
   fire: ['fire', 'gold'],
   ice: ['ice', 'white'],
   thunder: ['thunder', 'gold'],
+  golden: ['gold', 'fire'],
   gold: ['gold', 'fire'],
-  diamond: ['diamond'],
+  diamond: ['diamond', 'thunder'],
 };
 
 export const ELEMENT_META = {
@@ -30,6 +33,7 @@ export const ELEMENT_META = {
   ice: { ko: '얼음', adj: '서리', color: '#A6E4FF', glow: 'rgba(122,230,255,.6)', icon: '❄️' },
   thunder: { ko: '번개', adj: '뇌광', color: '#BB8CFF', glow: 'rgba(196,155,255,.6)', icon: '⚡' },
   gold: { ko: '황금', adj: '황금', color: '#FFD35C', glow: 'rgba(255,198,58,.6)', icon: '👑' },
+  golden: { ko: '황금', adj: '황금', color: '#FFD35C', glow: 'rgba(255,198,58,.6)', icon: '👑' },
   diamond: { ko: '다이아', adj: '다이아', color: '#DFF3FF', glow: 'rgba(198,245,255,.7)', icon: '💎' },
 };
 

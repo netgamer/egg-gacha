@@ -1,0 +1,854 @@
+{
+ "frost__acc": {
+  "bbox": [
+   0.308,
+   0.765,
+   0.598,
+   0.899
+  ],
+  "coverage": 0.0517,
+  "flags": [],
+  "grey_fraction": 0.071,
+  "outside_acc_zone": 0.001
+ },
+ "frost__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.007
+ },
+ "frost__body": {
+  "bbox": [
+   0.134,
+   0.907,
+   0.083,
+   0.999
+  ],
+  "coverage": 0.4796,
+  "flags": [],
+  "grey_fraction": 0.003,
+  "silhouette_cover": 0.994
+ },
+ "frost__eyes": {
+  "bbox": [
+   0.315,
+   0.435,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.01,
+  "flags": [],
+  "grey_fraction": 0.028,
+  "outside_eye_zone": 0.024
+ },
+ "frost__horns": {
+  "bbox": [
+   0.461,
+   0.899,
+   0.013,
+   0.16
+  ],
+  "coverage": 0.018,
+  "flags": [],
+  "grey_fraction": 0.004,
+  "inside_body": 0.24
+ },
+ "frost__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.009,
+   0.976
+  ],
+  "coverage": 0.3083,
+  "flags": [],
+  "grey_fraction": 0.0,
+  "inside_body": 0.006
+ },
+ "gilded__acc": {
+  "bbox": [
+   0.258,
+   0.802,
+   0.607,
+   0.909
+  ],
+  "coverage": 0.0743,
+  "flags": [],
+  "grey_fraction": 0.009,
+  "outside_acc_zone": 0.013
+ },
+ "gilded__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.001
+ },
+ "gilded__body": {
+  "bbox": [
+   0.135,
+   0.91,
+   0.083,
+   0.999
+  ],
+  "coverage": 0.4788,
+  "flags": [],
+  "grey_fraction": 0.0,
+  "silhouette_cover": 0.993
+ },
+ "gilded__eyes": {
+  "bbox": [
+   0.319,
+   0.43,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0092,
+  "flags": [],
+  "grey_fraction": 0.001,
+  "outside_eye_zone": 0.026
+ },
+ "gilded__horns": {
+  "bbox": [
+   0.189,
+   0.906,
+   0.009,
+   0.257
+  ],
+  "coverage": 0.0294,
+  "flags": [],
+  "grey_fraction": 0.002,
+  "inside_body": 0.341
+ },
+ "gilded__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.021,
+   0.966
+  ],
+  "coverage": 0.3337,
+  "flags": [],
+  "grey_fraction": 0.002,
+  "inside_body": 0.005
+ },
+ "ivory__acc": {
+  "bbox": [
+   0.287,
+   0.833,
+   0.609,
+   0.893
+  ],
+  "coverage": 0.0635,
+  "flags": [],
+  "grey_fraction": 0.005,
+  "outside_acc_zone": 0.004
+ },
+ "ivory__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.001
+ },
+ "ivory__body": {
+  "bbox": [
+   0.135,
+   0.905,
+   0.083,
+   0.999
+  ],
+  "coverage": 0.4778,
+  "flags": [],
+  "grey_fraction": 0.002,
+  "silhouette_cover": 0.99
+ },
+ "ivory__eyes": {
+  "bbox": [
+   0.319,
+   0.428,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0091,
+  "flags": [],
+  "grey_fraction": 0.011,
+  "outside_eye_zone": 0.026
+ },
+ "ivory__horns": {
+  "bbox": [
+   0.193,
+   0.882,
+   0.017,
+   0.247
+  ],
+  "coverage": 0.0174,
+  "flags": [],
+  "grey_fraction": 0.008,
+  "inside_body": 0.226
+ },
+ "ivory__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.041,
+   0.923
+  ],
+  "coverage": 0.2942,
+  "flags": [],
+  "grey_fraction": 0.001,
+  "inside_body": 0.006
+ },
+ "magma__acc": {
+  "bbox": [
+   0.258,
+   0.668,
+   0.605,
+   0.889
+  ],
+  "coverage": 0.0585,
+  "flags": [],
+  "grey_fraction": 0.003,
+  "outside_acc_zone": 0.009
+ },
+ "magma__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.001
+ },
+ "magma__body": {
+  "bbox": [
+   0.134,
+   0.908,
+   0.083,
+   0.999
+  ],
+  "coverage": 0.4786,
+  "flags": [],
+  "grey_fraction": 0.009,
+  "silhouette_cover": 0.993
+ },
+ "magma__eyes": {
+  "bbox": [
+   0.319,
+   0.438,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0095,
+  "flags": [],
+  "grey_fraction": 0.003,
+  "outside_eye_zone": 0.027
+ },
+ "magma__horns": {
+  "bbox": [
+   0.207,
+   0.915,
+   0.03,
+   0.237
+  ],
+  "coverage": 0.0224,
+  "flags": [],
+  "grey_fraction": 0.001,
+  "inside_body": 0.224
+ },
+ "magma__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.942
+  ],
+  "coverage": 0.3323,
+  "flags": [],
+  "grey_fraction": 0.005,
+  "inside_body": 0.004
+ },
+ "moss__acc": {
+  "bbox": [
+   0.26,
+   0.715,
+   0.665,
+   0.906
+  ],
+  "coverage": 0.0353,
+  "flags": [],
+  "grey_fraction": 0.001,
+  "outside_acc_zone": 0.024
+ },
+ "moss__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.002
+ },
+ "moss__body": {
+  "bbox": [
+   0.135,
+   0.908,
+   0.084,
+   0.999
+  ],
+  "coverage": 0.4782,
+  "flags": [],
+  "grey_fraction": 0.003,
+  "silhouette_cover": 0.991
+ },
+ "moss__eyes": {
+  "bbox": [
+   0.319,
+   0.428,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0091,
+  "flags": [],
+  "grey_fraction": 0.011,
+  "outside_eye_zone": 0.026
+ },
+ "moss__horns": {
+  "bbox": [
+   0.547,
+   0.92,
+   0.031,
+   0.2
+  ],
+  "coverage": 0.0169,
+  "flags": [],
+  "grey_fraction": 0.051,
+  "inside_body": 0.153
+ },
+ "moss__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.969
+  ],
+  "coverage": 0.3492,
+  "flags": [],
+  "grey_fraction": 0.002,
+  "inside_body": 0.005
+ },
+ "opal__acc": {
+  "bbox": [
+   0.291,
+   0.717,
+   0.648,
+   0.887
+  ],
+  "coverage": 0.0442,
+  "flags": [],
+  "grey_fraction": 0.049,
+  "outside_acc_zone": 0.0
+ },
+ "opal__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.003
+ },
+ "opal__body": {
+  "bbox": [
+   0.135,
+   0.906,
+   0.084,
+   0.999
+  ],
+  "coverage": 0.477,
+  "flags": [],
+  "grey_fraction": 0.01,
+  "silhouette_cover": 0.988
+ },
+ "opal__eyes": {
+  "bbox": [
+   0.319,
+   0.428,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0091,
+  "flags": [],
+  "grey_fraction": 0.013,
+  "outside_eye_zone": 0.026
+ },
+ "opal__horns": {
+  "bbox": [
+   0.545,
+   0.92,
+   0.053,
+   0.19
+  ],
+  "coverage": 0.0159,
+  "flags": [],
+  "grey_fraction": 0.035,
+  "inside_body": 0.165
+ },
+ "opal__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.014,
+   0.931
+  ],
+  "coverage": 0.2938,
+  "flags": [],
+  "grey_fraction": 0.032,
+  "inside_body": 0.004
+ },
+ "pearl__acc": {
+  "bbox": [
+   0.3,
+   0.799,
+   0.631,
+   0.897
+  ],
+  "coverage": 0.0504,
+  "flags": [],
+  "grey_fraction": 0.07,
+  "outside_acc_zone": 0.0
+ },
+ "pearl__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.11
+ },
+ "pearl__body": {
+  "bbox": [
+   0.135,
+   0.908,
+   0.083,
+   0.999
+  ],
+  "coverage": 0.4765,
+  "flags": [],
+  "grey_fraction": 0.066,
+  "silhouette_cover": 0.987
+ },
+ "pearl__eyes": {
+  "bbox": [
+   0.319,
+   0.434,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0094,
+  "flags": [],
+  "grey_fraction": 0.019,
+  "outside_eye_zone": 0.025
+ },
+ "pearl__horns": {
+  "bbox": [
+   0.398,
+   0.881,
+   0.023,
+   0.141
+  ],
+  "coverage": 0.0172,
+  "flags": [],
+  "grey_fraction": 0.018,
+  "inside_body": 0.216
+ },
+ "pearl__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.039,
+   0.981
+  ],
+  "coverage": 0.2986,
+  "flags": [],
+  "grey_fraction": 0.045,
+  "inside_body": 0.005
+ },
+ "prism__acc": {
+  "bbox": [
+   0.272,
+   0.798,
+   0.63,
+   0.895
+  ],
+  "coverage": 0.0664,
+  "flags": [],
+  "grey_fraction": 0.019,
+  "outside_acc_zone": 0.0
+ },
+ "prism__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.002
+ },
+ "prism__body": {
+  "bbox": [
+   0.135,
+   0.907,
+   0.083,
+   0.999
+  ],
+  "coverage": 0.4779,
+  "flags": [],
+  "grey_fraction": 0.013,
+  "silhouette_cover": 0.99
+ },
+ "prism__eyes": {
+  "bbox": [
+   0.319,
+   0.428,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0091,
+  "flags": [],
+  "grey_fraction": 0.011,
+  "outside_eye_zone": 0.026
+ },
+ "prism__horns": {
+  "bbox": [
+   0.549,
+   0.891,
+   0.024,
+   0.178
+  ],
+  "coverage": 0.017,
+  "flags": [],
+  "grey_fraction": 0.031,
+  "inside_body": 0.185
+ },
+ "prism__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.006,
+   0.999
+  ],
+  "coverage": 0.3943,
+  "flags": [],
+  "grey_fraction": 0.021,
+  "inside_body": 0.005
+ },
+ "sandstone__acc": {
+  "bbox": [
+   0.271,
+   0.786,
+   0.623,
+   0.842
+  ],
+  "coverage": 0.0472,
+  "flags": [],
+  "grey_fraction": 0.013,
+  "outside_acc_zone": 0.0
+ },
+ "sandstone__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.0
+ },
+ "sandstone__body": {
+  "bbox": [
+   0.135,
+   0.907,
+   0.083,
+   0.999
+  ],
+  "coverage": 0.4784,
+  "flags": [],
+  "grey_fraction": 0.0,
+  "silhouette_cover": 0.992
+ },
+ "sandstone__eyes": {
+  "bbox": [
+   0.319,
+   0.428,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0091,
+  "flags": [],
+  "grey_fraction": 0.014,
+  "outside_eye_zone": 0.026
+ },
+ "sandstone__horns": {
+  "bbox": [
+   0.459,
+   0.926,
+   0.039,
+   0.185
+  ],
+  "coverage": 0.0197,
+  "flags": [],
+  "grey_fraction": 0.018,
+  "inside_body": 0.181
+ },
+ "sandstone__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.068,
+   0.894
+  ],
+  "coverage": 0.2648,
+  "flags": [],
+  "grey_fraction": 0.014,
+  "inside_body": 0.005
+ },
+ "spotted__acc": {
+  "bbox": [
+   0.267,
+   0.771,
+   0.644,
+   0.892
+  ],
+  "coverage": 0.0362,
+  "flags": [],
+  "grey_fraction": 0.019,
+  "outside_acc_zone": 0.003
+ },
+ "spotted__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.006
+ },
+ "spotted__body": {
+  "bbox": [
+   0.135,
+   0.906,
+   0.083,
+   0.999
+  ],
+  "coverage": 0.4783,
+  "flags": [],
+  "grey_fraction": 0.0,
+  "silhouette_cover": 0.991
+ },
+ "spotted__eyes": {
+  "bbox": [
+   0.319,
+   0.43,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0093,
+  "flags": [],
+  "grey_fraction": 0.022,
+  "outside_eye_zone": 0.026
+ },
+ "spotted__horns": {
+  "bbox": [
+   0.365,
+   0.923,
+   0.02,
+   0.15
+  ],
+  "coverage": 0.0194,
+  "flags": [],
+  "grey_fraction": 0.104,
+  "inside_body": 0.234
+ },
+ "spotted__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.949
+  ],
+  "coverage": 0.3298,
+  "flags": [],
+  "grey_fraction": 0.168,
+  "inside_body": 0.005
+ },
+ "storm__acc": {
+  "bbox": [
+   0.4,
+   0.82,
+   0.65,
+   0.887
+  ],
+  "coverage": 0.0367,
+  "flags": [],
+  "grey_fraction": 0.013,
+  "outside_acc_zone": 0.0
+ },
+ "storm__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.014
+ },
+ "storm__body": {
+  "bbox": [
+   0.134,
+   0.907,
+   0.083,
+   0.999
+  ],
+  "coverage": 0.4794,
+  "flags": [],
+  "grey_fraction": 0.001,
+  "silhouette_cover": 0.992
+ },
+ "storm__eyes": {
+  "bbox": [
+   0.319,
+   0.43,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0092,
+  "flags": [],
+  "grey_fraction": 0.017,
+  "outside_eye_zone": 0.026
+ },
+ "storm__horns": {
+  "bbox": [
+   0.497,
+   0.866,
+   0.018,
+   0.175
+  ],
+  "coverage": 0.017,
+  "flags": [],
+  "grey_fraction": 0.012,
+  "inside_body": 0.203
+ },
+ "storm__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 0.3688,
+  "flags": [],
+  "grey_fraction": 0.012,
+  "inside_body": 0.006
+ },
+ "tempest__acc": {
+  "bbox": [
+   0.292,
+   0.735,
+   0.641,
+   0.909
+  ],
+  "coverage": 0.0368,
+  "flags": [],
+  "grey_fraction": 0.033,
+  "outside_acc_zone": 0.0
+ },
+ "tempest__bg": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.0,
+   0.999
+  ],
+  "coverage": 1.0,
+  "flags": [],
+  "grey_fraction": 0.021
+ },
+ "tempest__body": {
+  "bbox": [
+   0.134,
+   0.908,
+   0.084,
+   0.999
+  ],
+  "coverage": 0.4784,
+  "flags": [],
+  "grey_fraction": 0.033,
+  "silhouette_cover": 0.992
+ },
+ "tempest__eyes": {
+  "bbox": [
+   0.319,
+   0.428,
+   0.245,
+   0.354
+  ],
+  "coverage": 0.0091,
+  "flags": [],
+  "grey_fraction": 0.016,
+  "outside_eye_zone": 0.026
+ },
+ "tempest__horns": {
+  "bbox": [
+   0.193,
+   0.913,
+   0.036,
+   0.247
+  ],
+  "coverage": 0.0145,
+  "flags": [],
+  "grey_fraction": 0.114,
+  "inside_body": 0.324
+ },
+ "tempest__wings": {
+  "bbox": [
+   0.0,
+   0.999,
+   0.028,
+   0.871
+  ],
+  "coverage": 0.3127,
+  "flags": [],
+  "grey_fraction": 0.018,
+  "inside_body": 0.005
+ }
+}

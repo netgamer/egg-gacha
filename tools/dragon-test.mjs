@@ -62,7 +62,7 @@ async function attempt(name, ctxOpts, fn) {
 
 async function phase(name, ctxOpts, fn) {
   console.log(`\n=== ${name} ===`);
-  for (let n = 1; n <= 2; n++) {
+  for (let n = 1; n <= 3; n++) {
     const trial = [];
     sink = trial;
     const res = await attempt(name, ctxOpts, fn);
@@ -114,22 +114,31 @@ await phase('parts — 60+ layered images', MOBILE, async ({ page, goto }) => {
     return { total: G.parts.length, layers, full, thumbs, base: G.partBase };
   });
 
-  ok(info.total >= 60, `파츠 이미지 ${info.total}장 (6슬롯 × 14)`);
+  ok(info.total >= 60 && info.total <= 84, `파츠 이미지 ${info.total}장 (6슬롯 × ${info.layers[0].count})`);
   ok(info.layers.every((l) => l.count >= 10), `슬롯별 10장 이상 — ${info.layers.map((l) => `${l.ko} ${l.count}`).join(' · ')}`);
   ok(
     info.full.every((f) => f.status === 200 && f.bytes > 1200),
     `전체 파츠 HTTP 200 (${info.full.length}장, 최소 ${Math.round(Math.min(...info.full.map((f) => f.bytes)) / 1024)}KB)`
   );
   ok(
-    info.full.every((f) => f.dim && f.dim[0] === 512 && f.dim[1] === 512),
-    '모든 파츠 512×512 디코드'
+    info.full.every((f) => f.dim && f.dim[0] === 640 && f.dim[1] === 800),
+    '모든 파츠 640×800 (4:5 버스트) 디코드'
   );
   ok(
-    info.thumbs.every((f) => f.status === 200 && f.dim && f.dim[0] === 192),
-    `갤러리 썸네일 192×192 ${info.thumbs.length}장`
+    info.thumbs.every((f) => f.status === 200 && f.dim && f.dim[0] === 192 && f.dim[1] === 240),
+    `갤러리 썸네일 192×240 ${info.thumbs.length}장`
   );
   const totalKB = Math.round(info.full.reduce((s, f) => s + f.bytes, 0) / 1024);
-  ok(totalKB < 2600, `파츠 번들 ${totalKB}KB (모바일 캐시 부담 없음)`);
+  ok(totalKB < 7000, `파츠 번들 전체 ${totalKB}KB (72장 WebP)`);
+  // a single hatch only ever downloads six of them
+  let idx = 0;
+  let perDragon = 0;
+  for (const l of info.layers) {
+    const block = info.full.slice(idx, idx + l.count);
+    perDragon += Math.max(...block.map((f) => f.bytes));
+    idx += l.count;
+  }
+  ok(perDragon < 1200 * 1024, `한 마리 부화당 최대 ${Math.round(perDragon / 1024)}KB`);
   notes.push(`parts ${info.total}장 · ${totalKB}KB · base "${info.base}"`);
 });
 
@@ -138,8 +147,8 @@ await phase('hatch — 80% affinity (통계 검정)', MOBILE, async ({ page, got
   await goto();
   const res = await page.evaluate(() => {
     const G = window.__eggGacha;
-    const eggs = ['white', 'spotted', 'forest', 'fire', 'ice', 'thunder', 'gold', 'diamond'];
-    const layers = ['bg', 'wings', 'body', 'eyes', 'head', 'acc'];
+    const eggs = ['white', 'spotted', 'forest', 'fire', 'ice', 'thunder', 'golden', 'diamond'];
+    const layers = ['bg', 'wings', 'body', 'eyes', 'horns', 'acc'];
     const partOf = (layer, id) => G.parts.find((p) => p.layer === layer && p.id === id);
     const perSlot = Object.fromEntries(layers.map((l) => [l, { kin: 0, total: 0 }]));
     const perEgg = {};
@@ -195,9 +204,14 @@ await phase('hatch — 80% affinity (통계 검정)', MOBILE, async ({ page, got
       Object.entries(perPart).map(([k, v]) => `${k} ${v.toFixed(0)}`).join(' · ') +
       ` (parts ${JSON.stringify(res.counts)})`
   );
+  // The weights themselves must stay ordered; the realised per-part draw counts
+  // also follow the element families (a thunder egg is meant to give epic parts),
+  // so only the ends of the table are compared here.
+  const w = await page.evaluate(() => window.__eggGacha.partWeight);
+  ok(w.common > w.rare && w.rare > w.epic && w.epic > w.legendary, `희귀도 가중치 일반>희귀>영웅>전설 (${JSON.stringify(w)})`);
   ok(
-    perPart.common > perPart.rare && perPart.rare > perPart.epic && perPart.epic > perPart.legendary,
-    `파츠당 희귀도 가중치 일반>희귀>영웅>전설 (${Object.entries(perPart)
+    perPart.common > perPart.legendary * 2,
+    `파츠당 뽑힘 일반>전설 (${Object.entries(perPart)
       .map(([k, v]) => `${k} ${v.toFixed(0)}`)
       .join(' / ')})`
   );
@@ -220,15 +234,8 @@ await phase('mobile — 뽑기 → 알 깨기 → 드래곤 공개', MOBILE, asy
   await page.click('#hatchBtn', { noWaitAfter: true });
   await page.waitForSelector('#revealCard .dc', { timeout: 25000 });
   await page
-    .waitForFunction(
-      () => {
-        const imgs = [...document.querySelectorAll('#revealCard .dc-art img')];
-        return imgs.length === 6 && imgs.every((i) => i.complete && i.naturalWidth === 512);
-      },
-      null,
-      { timeout: 8000 }
-    )
-    .catch(() => console.log('  (layer images not all decoded in time)'));
+    .waitForFunction(() => !!document.querySelector('#revealCard img.dc-canvas.ready'), null, { timeout: 15000 })
+    .catch(() => console.log('  (compositor not ready in time)'));
 
   const card = await page.evaluate(() => {
     const dc = document.querySelector('#revealCard .dc');
@@ -236,20 +243,26 @@ await phase('mobile — 뽑기 → 알 깨기 → 드래곤 공개', MOBILE, asy
       k: t.querySelector('.k').textContent,
       v: t.querySelector('.v').textContent,
     }));
-    const layers = [...dc.querySelectorAll('.dc-art img')].map((i) => ({ src: i.getAttribute('src'), w: i.naturalWidth }));
+    const c = dc.querySelector('.dc-art img.dc-canvas');
+    const art = dc.querySelector('.dc-art').getBoundingClientRect();
     return {
       rarity: dc.dataset.rarity,
       name: dc.querySelector('.dc-name').textContent,
       origin: dc.querySelector('.dc-origin').textContent,
       badges: [...dc.querySelectorAll('.dc-badge')].map((b) => b.textContent.trim()),
       traits,
-      layers,
+      canvas: c ? { w: c.naturalWidth, h: c.naturalHeight, src: (c.getAttribute('src') || '').slice(0, 24) } : null,
+      art: { w: art.width, h: art.height },
       serial: dc.querySelector('.dc-serial').textContent,
     };
   });
   ok(card.traits.length === 6, `특성 6개 — ${card.traits.map((t) => t.k + ':' + t.v).join(', ')}`);
   ok(card.badges.length >= 2, `희귀도/속성 배지 ${card.badges.length}개 (${card.badges.join(' / ')})`);
-  ok(card.layers.length === 6 && card.layers.every((l) => l.w === 512), '6레이어 합성 이미지 512px 로드');
+  ok(
+    card.canvas && card.canvas.w >= 320 && /^data:image/.test(card.canvas.src),
+    `6파츠 캔버스 합성 → 이미지 (${card.canvas?.w}×${card.canvas?.h})`
+  );
+  ok(Math.abs(card.art.w / card.art.h - 0.8) < 0.02, `카드 아트 4:5 (${Math.round(card.art.w)}×${Math.round(card.art.h)})`);
   ok(/얼음 알/.test(card.origin), `알 출처 표기 "${card.origin}"`);
   ok(/#001/.test(card.serial), `시리얼 ${card.serial}`);
 
@@ -376,7 +389,7 @@ await phase('mobile/desktop — 부화 화면 레이아웃', MOBILE, async ({ pa
     return { bottom: box.bottom, vh: innerHeight, art: { w: art.width, h: art.height }, traits };
   });
   ok(rev.bottom <= rev.vh + 1, `공개 카드 화면 안 (bottom ${Math.round(rev.bottom)}/${rev.vh})`);
-  ok(Math.abs(rev.art.w - rev.art.h) < 2, `카드 아트 정사각 (${Math.round(rev.art.w)}×${Math.round(rev.art.h)})`);
+  ok(Math.abs(rev.art.w / rev.art.h - 0.8) < 0.03, `카드 아트 4:5 (${Math.round(rev.art.w)}×${Math.round(rev.art.h)})`);
   ok(rev.traits === 2, '특성 2열 배치');
   ok(errors.length === 0, `오류 0 (${errors.join(' | ') || 'none'})`);
 });

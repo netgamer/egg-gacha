@@ -6,6 +6,7 @@ import { Roulette } from './roulette.js';
 import { Collection } from './collection.js';
 import { DragonCollection } from './dragon-collection.js';
 import { dragonThumb, clearThumbs, BLANK } from './dragon-thumb.js';
+import { composeCardUrl, preloadDragonArt as preloadArt, clearArtCache, clearCardCache, pruneArtCache, debugCompose } from './dragon-compose.js';
 import {
   DRAGON_LAYERS,
   ELEMENT_META,
@@ -277,15 +278,29 @@ function revealEgg(egg, n = 1) {
 
 /* ----------------------------------------------------------- dragon card -- */
 
-function artMarkup(dragon, { lazy = false } = {}) {
-  return dragonLayers(dragon, PARTS_BASE)
-    .map(
-      (l) =>
-        `<img src="${l.url}" alt="" draggable="false" decoding="async"${
-          lazy ? ' loading="lazy"' : ''
-        } />`
-    )
-    .join('');
+function artMarkup(dragon) {
+  // One canvas rather than six <img> layers: the compositor lights the six
+  // paintings with the same environment, which is what makes a cross-theme
+  // hatch look like one painting instead of six stickers.
+  return `<img class="dc-canvas" data-dragon="${dragon.id}" alt="" draggable="false" decoding="async" />`;
+}
+
+/** Paint every dragon card inside `root` (reveal card, detail modal). */
+function paintCards(root) {
+  for (const img of root.querySelectorAll('img.dc-canvas[data-dragon]')) {
+    const d = dragons.find(img.dataset.dragon);
+    if (!d) continue;
+    const box = img.parentElement ? img.parentElement.clientWidth : 320;
+    composeCardUrl(d, PARTS_BASE, Math.min(560, Math.max(320, box * Math.min(2, window.devicePixelRatio || 1))))
+      .then((url) => {
+        if (!url || !img.isConnected) return;
+        img.onload = () => img.classList.add('ready');
+        img.onerror = () => img.classList.add('ready');
+        img.src = url;
+        if (img.complete && img.naturalWidth) img.classList.add('ready');
+      })
+      .catch(() => {});
+  }
 }
 
 function traitsMarkup(dragon) {
@@ -330,16 +345,7 @@ function dragonCard(dragon, { isNew = false } = {}) {
 }
 
 function preloadDragonArt(dragon) {
-  return Promise.all(
-    dragonLayers(dragon, PARTS_BASE).map(
-      (l) =>
-        new Promise((resolve) => {
-          const img = new Image();
-          img.onload = img.onerror = () => resolve();
-          img.src = l.url;
-        })
-    )
-  );
+  return preloadArt(dragon, PARTS_BASE).catch(() => {});
 }
 
 /* ------------------------------------------------------------ hatch flow -- */
@@ -406,6 +412,7 @@ function openHatch(uid) {
 }
 
 function closeHatch() {
+  pruneArtCache(6);
   el.hatch.classList.remove('open');
   el.hatch.setAttribute('aria-hidden', 'true');
   el.app.classList.remove('fx-top', 'hatching');
@@ -464,6 +471,7 @@ function showDragonReveal(dragon) {
   el.hatchStage.hidden = true;
   el.revealWrap.hidden = false;
   el.revealCard.innerHTML = dragonCard(dragon, { isNew: true });
+  paintCards(el.revealCard);
   const card = el.revealCard.querySelector('.dc');
   requestAnimationFrame(() => card && card.classList.add('pop'));
 
@@ -538,16 +546,24 @@ function renderDragons() {
     })
     .join('');
 
+  // Bake the gallery thumbnails one at a time: each one runs the full light
+  // pass and a phone (or a software renderer) should never hold a dozen
+  // compositing canvases at once.
   const byId = new Map(list.map((d) => [d.id, d]));
-  for (const img of el.dragonGrid.querySelectorAll('img[data-thumb]')) {
+  const imgs = [...el.dragonGrid.querySelectorAll('img[data-thumb]')];
+  let chain = Promise.resolve();
+  for (const img of imgs) {
     const d = byId.get(img.dataset.thumb);
     if (!d) continue;
-    dragonThumb(d, PARTS_BASE, 256).then((url) => {
-      if (url && img.isConnected) {
-        img.src = url;
-        img.dataset.ready = '1';
-      }
-    });
+    chain = chain
+      .then(() => dragonThumb(d, PARTS_BASE, 240))
+      .then((url) => {
+        if (url && img.isConnected) {
+          img.src = url;
+          img.dataset.ready = '1';
+        }
+      })
+      .catch(() => {});
   }
 }
 
@@ -582,6 +598,7 @@ function closeDex() {
 function openDetail(dragon) {
   if (!dragon) return;
   el.detailBox.innerHTML = `${dragonCard(dragon)}<button class="btn btn-secondary detail-close" type="button" id="detailClose"><span class="btn-label">닫기</span></button>`;
+  paintCards(el.detailBox);
   el.detail.classList.add('open');
   el.detail.setAttribute('aria-hidden', 'false');
   el.detailBox.querySelector('#detailClose').addEventListener('click', closeDetail);
@@ -656,6 +673,8 @@ el.resetBtn.addEventListener('click', () => {
     collection.reset();
     dragons.reset();
     clearThumbs();
+    clearArtCache();
+    clearCardCache();
     renderDragons();
     updateHud();
     el.resetBtn.textContent = '기록 초기화';
@@ -763,6 +782,7 @@ window.__eggGacha = {
   elementFamily: ELEMENT_FAMILY,
   parts: DRAGON_LAYERS.flatMap((l) => l.parts.map((p) => ({ layer: l.id, ...p }))),
   partBase: PARTS_BASE,
+  debugCompose: (slots, w = 384, h = 480, opts = {}) => debugCompose(slots, PARTS_BASE, w, h, opts),
 };
 
 preload.then(() => {
