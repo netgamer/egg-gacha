@@ -51,6 +51,22 @@ await page
   .catch(() => console.log('(card image not ready)'));
 await page.waitForTimeout(900);
 await page.screenshot({ path: 'shots/live-reveal.png' });
+// the live elemental aura must actually be animating
+const aa = await page.evaluate(() => window.__eggGacha.auraStats());
+await page.waitForTimeout(600);
+const ab = await page.evaluate(() => window.__eggGacha.auraStats());
+console.log(
+  'aura',
+  JSON.stringify(
+    aa.map((a, i) => ({
+      element: a.element,
+      running: a.running,
+      frames: `${a.frames}->${ab[i] && ab[i].frames}`,
+      animated: !!(ab[i] && ab[i].checksum !== a.checksum),
+    }))
+  )
+);
+
 console.log(
   'dragon',
   await page.evaluate(() => {
