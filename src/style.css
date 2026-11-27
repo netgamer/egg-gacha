@@ -1034,7 +1034,7 @@ body {
 /* landscape phones: stage left, controls right */
 @media (orientation: landscape) and (max-height: 560px) {
   :root {
-    --card-w: clamp(110px, 33vh, 172px);
+    --card-w: clamp(110px, 38vh, 180px);
   }
 
   #app {
@@ -1070,8 +1070,13 @@ body {
   }
 
   .results {
-    height: 0;
+    height: 46px;
     overflow: visible;
+  }
+
+  .results .slot,
+  .mini-odds {
+    display: none;
   }
 
   .roulette {
@@ -1083,6 +1088,12 @@ body {
   }
 
   .hint {
+    display: none;
+  }
+}
+
+@media (max-height: 700px) and (orientation: portrait) {
+  .mini-odds {
     display: none;
   }
 }
