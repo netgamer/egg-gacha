@@ -5,3 +5,5 @@ assets-src/
 .DS_Store
 shots/tmp-*
 shots/z*.png
+
+build/

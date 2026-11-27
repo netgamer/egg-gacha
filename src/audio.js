@@ -111,6 +111,27 @@ export class Sfx {
     this._tone({ freq: 660, to: 990, dur: 0.07, type: 'triangle', vol: 0.06 });
   }
 
+  /** Egg being tapped/cracked. strength 0..1 */
+  crack(strength = 1) {
+    if (!this.ready) return;
+    const s = Math.max(0.1, Math.min(1, strength));
+    this._noise({ dur: 0.07 + 0.1 * s, vol: 0.05 + 0.16 * s, from: 9000, to: 1800, type: 'highpass', q: 2 });
+    this._tone({ freq: 150 - 30 * s, to: 55, dur: 0.1 + 0.06 * s, type: 'square', vol: 0.04 + 0.05 * s });
+  }
+
+  /** Egg shattering open + dragon reveal shimmer. */
+  burst(rank = 1) {
+    if (!this.ready) return;
+    this._noise({ dur: 0.5, vol: 0.24, from: 7000, to: 250, type: 'lowpass', q: 0.8 });
+    this._tone({ freq: 180, to: 46, dur: 0.4, type: 'sine', vol: 0.3 });
+    this._tone({ freq: 90, to: 40, dur: 0.55, type: 'triangle', vol: 0.18, at: 0.02 });
+    const run = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98];
+    run.slice(0, 3 + rank).forEach((f, i) =>
+      this._tone({ freq: f, dur: 0.34, type: 'triangle', vol: 0.1, at: 0.1 + i * 0.07 })
+    );
+    this._noise({ dur: 0.9, vol: 0.07, at: 0.2, from: 12000, to: 5000, type: 'highpass' });
+  }
+
   /** Rarity fanfare. rank: 0 common, 1 rare, 2 epic, 3 legendary. */
   reveal(rank = 0) {
     if (!this.ready) return;

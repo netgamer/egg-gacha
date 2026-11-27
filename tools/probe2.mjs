@@ -1,0 +1,23 @@
+import { chromium } from 'playwright';
+import { startServer } from './server.mjs';
+const n = Number(process.argv[2] || 1);
+const { server, url } = await startServer('dist', 0);
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'ko-KR' });
+const page = await ctx.newPage();
+page.on('crash', () => console.log('CRASH'));
+const eggs = ['fire', 'diamond', 'white', 'thunder', 'gold'];
+await page.addInitScript(([n, eggs]) => {
+  const arr = [];
+  for (let i = 0; i < n; i++) arr.push({ uid: 'p' + i, egg: eggs[i % 5], ts: 1 });
+  localStorage.setItem('egg-gacha.pending.v1', JSON.stringify(arr));
+}, [n, eggs]);
+await page.goto(url, { waitUntil: 'networkidle' });
+await page.waitForFunction(() => window.__eggGacha?.ready === true);
+console.log('pending', await page.evaluate(() => window.__eggGacha.state().pending.length));
+await page.click('#hatchCue');
+await page.waitForTimeout(500);
+await page.click('#hatchBtn');
+await page.waitForTimeout(1700);
+console.log('reveal?', await page.evaluate(() => !!document.querySelector('#revealCard .dc')).catch(() => 'dead'));
+await browser.close(); server.close();

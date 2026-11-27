@@ -4,10 +4,28 @@ import { Sfx } from './audio.js';
 import { Fx } from './fx.js';
 import { Roulette } from './roulette.js';
 import { Collection } from './collection.js';
+import { DragonCollection } from './dragon-collection.js';
+import { dragonThumb, clearThumbs, BLANK } from './dragon-thumb.js';
+import {
+  DRAGON_LAYERS,
+  ELEMENT_META,
+  ELEMENT_FAMILY,
+  PART_WEIGHT,
+  RANK,
+  hatchDragon,
+  dragonLayers,
+  dragonName,
+  dragonRarity,
+  dragonElement,
+} from './dragon.js';
 
+const PARTS_BASE = import.meta.env.BASE_URL;
 const $ = (sel) => document.querySelector(sel);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => a + Math.random() * (b - a);
+const pad3 = (n) => String(n).padStart(3, '0');
+const esc = (s) =>
+  String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const el = {
   app: $('#app'),
@@ -32,7 +50,33 @@ const el = {
   resetBtn: $('#resetBtn'),
   hint: $('#hint'),
   aura: $('#aura'),
-  rays: $('#rays'),
+  // dragons
+  dragonCount: $('#dragonCount'),
+  tabEggCount: $('#tabEggCount'),
+  tabDragonCount: $('#tabDragonCount'),
+  tabEggs: $('#tabEggs'),
+  tabDragons: $('#tabDragons'),
+  eggPanel: $('#eggPanel'),
+  dragonPanel: $('#dragonPanel'),
+  dragonGrid: $('#dragonGrid'),
+  dragonEmpty: $('#dragonEmpty'),
+  detail: $('#detail'),
+  detailBox: $('#detailBox'),
+  hatch: $('#hatch'),
+  hatchClose: $('#hatchClose'),
+  hatchStage: $('#hatchStage'),
+  hatchStep: $('#hatchStep'),
+  hatchTitle: $('#hatchTitle'),
+  hatchSub: $('#hatchSub'),
+  hatchBtn: $('#hatchBtn'),
+  eggWrap: $('#eggWrap'),
+  hatchEggImg: $('#hatchEggImg'),
+  hatchCue: $('#hatchCue'),
+  revealWrap: $('#revealWrap'),
+  revealCard: $('#revealCard'),
+  nextHatch: $('#nextHatch'),
+  nextHatchSub: $('#nextHatchSub'),
+  revealClose: $('#revealClose'),
 };
 
 const sfx = new Sfx();
@@ -42,6 +86,7 @@ const fx = new Fx($('#fx'), {
   },
 });
 const collection = new Collection(EGGS);
+const dragons = new DragonCollection();
 const roulette = new Roulette({
   el: $('#roulette'),
   track: $('#track'),
@@ -51,12 +96,12 @@ const roulette = new Roulette({
 
 let busy = false;
 let forced = [];
+let dexTab = 'eggs';
 
 /* ---------------------------------------------------------------- banner -- */
 
 function showBanner(text, rarity = null, { dim = false } = {}) {
   el.banner.classList.remove('show', 'r-common', 'r-rare', 'r-epic', 'r-legendary', 'dim', 'spin');
-  // restart the pop animation
   void el.banner.offsetWidth;
   el.bannerText.textContent = text;
   if (rarity) el.banner.classList.add('r-' + rarity.key);
@@ -76,7 +121,13 @@ function updateHud() {
   el.dexCount.textContent = String(found);
   el.foundCount.textContent = String(found);
   el.pullCount.textContent = String(collection.pulls);
-  el.dexSummary.textContent = `발견 ${found} / ${collection.total} · 총 ${collection.pulls}회 뽑기`;
+  el.dragonCount.textContent = String(dragons.count);
+  el.tabEggCount.textContent = String(found);
+  el.tabDragonCount.textContent = String(dragons.count);
+  el.dexSummary.textContent =
+    dexTab === 'eggs'
+      ? `발견 ${found} / ${collection.total} · 총 ${collection.pulls}회 뽑기`
+      : `부화 ${dragons.count}마리 · 6파츠 조합`;
   for (const item of el.dexGrid.children) {
     const id = item.dataset.id;
     const n = collection.count(id);
@@ -88,6 +139,7 @@ function updateHud() {
     name.textContent = EGG_BY_ID[id].name;
     count.textContent = n > 0 ? `×${n}` : '미발견';
   }
+  updateCue();
 }
 
 /* --------------------------------------------------------------- results -- */
@@ -108,51 +160,33 @@ function clearResults() {
   renderSlots();
 }
 
-function addResultChip(egg) {
+function addResultChip(egg, pendingUid) {
   const rar = RARITY[egg.rarity];
   const chip = document.createElement('div');
-  chip.className = 'chip';
+  chip.className = 'chip pending';
   chip.dataset.rarity = egg.rarity;
+  chip.dataset.pending = pendingUid || '';
+  chip.setAttribute('role', 'button');
+  chip.setAttribute('tabindex', '0');
+  chip.setAttribute('aria-label', `${egg.name} 부화시키기`);
   chip.style.setProperty('--rar', rar.color);
   chip.innerHTML = `<span class="chip-art"><img src="${egg.img}" alt="${egg.name}" /></span>
     <span class="chip-name">${egg.name}</span>`;
+  const open = () => {
+    if (chip.dataset.pending) openHatch(chip.dataset.pending);
+  };
+  chip.addEventListener('click', open);
+  chip.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      open();
+    }
+  });
   el.results.classList.add('has');
   el.miniOdds.classList.add('hide');
   el.results.appendChild(chip);
   const chips = el.results.querySelectorAll('.chip');
   if (chips.length > 5) chips[0].remove();
-}
-
-/* ---------------------------------------------------------------- reveal -- */
-
-function reveal(egg, { withChips = false } = {}) {
-  const rar = RARITY[egg.rarity];
-  roulette.setFrameColor(rar.color, rar.glow);
-  el.app.style.setProperty('--rar', rar.color);
-  el.app.style.setProperty('--rar-glow', rar.glow);
-  el.aura.style.setProperty('--aura', rar.color);
-
-  const rect = roulette.centerRect();
-  fx.setAccent(rar.color);
-  fx.celebrate(rar.rank, rect.left + rect.width / 2, rect.top + rect.height / 2, {
-    rainbow: !!rar.rainbow,
-    color: rar.color,
-  });
-  sfx.reveal(rar.rank);
-
-  showBanner(egg.banner, rar);
-  collection.add(egg.id);
-  updateHud();
-  if (withChips) addResultChip(egg);
-  if (egg.rarity !== 'common') el.hint.textContent = `${RARITY[egg.rarity].label} 알을 발견했어요!`;
-
-  if (navigator.vibrate) {
-    try {
-      navigator.vibrate(rar.rank >= 2 ? [18, 40, 26] : 12);
-    } catch (_) {
-      /* not supported */
-    }
-  }
 }
 
 /* ------------------------------------------------------------------ pull -- */
@@ -192,14 +226,276 @@ async function pull(n = 1) {
     const distance = n === 1 ? rand(36, 40) : i === 0 ? rand(29, 32) : rand(6, 8);
     await roulette.spinTo(winners[i].id, { duration, distance });
     await wait(n === 1 ? 90 : 140);
-    reveal(winners[i], { withChips: n > 1 });
+    revealEgg(winners[i], n);
     pulled.push(winners[i].id);
     if (i < n - 1) await wait(n === 1 ? 0 : 420);
   }
 
-  if (n > 1) el.hint.textContent = '도감에서 모은 알을 확인해 보세요';
+  el.hint.textContent =
+    dragons.pending.length > 1
+      ? `알 ${dragons.pending.length}개가 부화를 기다려요 — 탭해서 깨 보세요!`
+      : '알을 탭하거나 [알 깨기]를 눌러 부화시켜 보세요';
   setBusy(false);
+  updateCue();
+  updateHud();
   return pulled;
+}
+
+/* ---------------------------------------------------------------- reveal -- */
+
+function revealEgg(egg, n = 1) {
+  const rar = RARITY[egg.rarity];
+  fx.clear();
+  roulette.setFrameColor(rar.color, rar.glow);
+  el.app.style.setProperty('--rar', rar.color);
+  el.app.style.setProperty('--rar-glow', rar.glow);
+  el.aura.style.setProperty('--aura', rar.color);
+
+  const rect = roulette.centerRect();
+  fx.setAccent(rar.color);
+  fx.celebrate(rar.rank, rect.left + rect.width / 2, rect.top + rect.height / 2, {
+    rainbow: !!rar.rainbow,
+    color: rar.color,
+  });
+  sfx.reveal(rar.rank);
+
+  showBanner(egg.banner, rar);
+  collection.add(egg.id);
+  const uid = dragons.addPending(egg.id);
+  addResultChip(egg, uid);
+  updateHud();
+  if (egg.rarity !== 'common') el.hint.textContent = `${rar.label} 알을 발견했어요!`;
+
+  if (navigator.vibrate) {
+    try {
+      navigator.vibrate(rar.rank >= 2 ? [18, 40, 26] : 12);
+    } catch (_) {
+      /* not supported */
+    }
+  }
+}
+
+/* ----------------------------------------------------------- dragon card -- */
+
+function artMarkup(dragon, { lazy = false } = {}) {
+  return dragonLayers(dragon, PARTS_BASE)
+    .map(
+      (l) =>
+        `<img src="${l.url}" alt="" draggable="false" decoding="async"${
+          lazy ? ' loading="lazy"' : ''
+        } />`
+    )
+    .join('');
+}
+
+function traitsMarkup(dragon) {
+  return dragonLayers(dragon, PARTS_BASE)
+    .map((l) => {
+      const c = RARITY[l.rarity].color;
+      return `<li class="dc-trait" title="${esc(l.layerKo)} · ${esc(l.part.name)} (${RARITY[l.rarity].label})">
+        <span class="k">${esc(l.layerKo)}</span>
+        <span class="v">${esc(l.part.name)}</span>
+        <span class="dot" style="--c:${c}"></span>
+      </li>`;
+    })
+    .join('');
+}
+
+function dragonCard(dragon, { isNew = false } = {}) {
+  const rar = dragonRarity(dragon);
+  const egg = EGG_BY_ID[dragon.egg];
+  const element = ELEMENT_META[dragonElement(dragon)] || ELEMENT_META[dragon.egg];
+  const eggElement = ELEMENT_META[dragon.egg];
+  return `<article class="dc" data-rarity="${dragon.rarity}" style="--rar:${rar.color}">
+    <div class="dc-art">
+      ${artMarkup(dragon)}
+      ${isNew ? '<span class="dc-ribbon">NEW</span>' : ''}
+      <div class="dc-badges">
+        <span class="dc-badge">${rar.label}</span>
+        <span class="dc-badge ghost">${element.icon} ${element.ko}</span>
+      </div>
+      <div class="dc-shine"></div>
+    </div>
+    <div class="dc-meta">
+      <div>
+        <h3 class="dc-name">${esc(dragonName(dragon))}</h3>
+        <p class="dc-origin">🥚 ${esc(egg.name)}에서 부화 · ${eggElement.ko} 친화 ${Math.round(
+          dragon.affinity * 100
+        )}%</p>
+      </div>
+      <span class="dc-serial">#${pad3(dragon.serial)}</span>
+    </div>
+    <ul class="dc-traits">${traitsMarkup(dragon)}</ul>
+  </article>`;
+}
+
+function preloadDragonArt(dragon) {
+  return Promise.all(
+    dragonLayers(dragon, PARTS_BASE).map(
+      (l) =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.onload = img.onerror = () => resolve();
+          img.src = l.url;
+        })
+    )
+  );
+}
+
+/* ------------------------------------------------------------ hatch flow -- */
+
+const hatch = { busy: false, uid: null };
+
+function eggsWaiting() {
+  return dragons.pending.length;
+}
+
+function updateCue() {
+  const n = eggsWaiting();
+  if (n > 0) {
+    el.hatchCue.hidden = false;
+    el.hatchCue.querySelector('.hc-text').textContent = n > 1 ? `${n}개 부화하기` : '알 깨기!';
+  } else {
+    el.hatchCue.hidden = true;
+  }
+}
+
+function pendingIndex(uid) {
+  if (!uid) return 0;
+  const i = dragons.pending.findIndex((p) => p.uid === uid);
+  return i < 0 ? 0 : i;
+}
+
+function resetEggStage() {
+  el.hatchStage.hidden = false;
+  el.revealWrap.hidden = true;
+  el.revealCard.innerHTML = '';
+  el.eggWrap.classList.remove('shake', 'cracking', 'bursting');
+  el.eggWrap.style.opacity = '';
+  el.hatchBtn.hidden = false;
+  el.hatchBtn.disabled = false;
+  el.hatchTitle.textContent = '알이 흔들리고 있어요…';
+  el.hatchSub.textContent = '톡톡 두드리면 곧 부화해요';
+}
+
+function updateHatchStep() {
+  const total = eggsWaiting();
+  el.hatchStep.textContent = total > 1 ? `부화 대기 ${total}개` : total === 1 ? '부화 대기 1개' : '';
+  const next = el.nextHatch;
+  if (total > 0 && el.revealWrap.hidden === false) {
+    next.hidden = false;
+    el.nextHatchSub.textContent = `${total}개 남음`;
+  } else {
+    next.hidden = true;
+  }
+}
+
+function openHatch(uid) {
+  if (!dragons.pending.length) return;
+  hatch.uid = dragons.pending[pendingIndex(uid)]?.uid || dragons.pending[0].uid;
+  const entry = dragons.pending[pendingIndex(uid)] || dragons.pending[0];
+  const egg = EGG_BY_ID[entry.egg];
+  el.hatchEggImg.src = egg.img;
+  el.hatchEggImg.alt = egg.name;
+  el.hatch.classList.add('open');
+  el.hatch.setAttribute('aria-hidden', 'false');
+  el.app.classList.add('hatching');
+  resetEggStage();
+  updateHatchStep();
+  sfx.click();
+}
+
+function closeHatch() {
+  el.hatch.classList.remove('open');
+  el.hatch.setAttribute('aria-hidden', 'true');
+  el.app.classList.remove('fx-top', 'hatching');
+  resetEggStage();
+  updateCue();
+  updateHud();
+}
+
+async function hatchCurrent() {
+  if (hatch.busy) return null;
+  const entry = dragons.pending[hatch.uid ? pendingIndex(hatch.uid) : 0];
+  if (!entry) return null;
+  const egg = EGG_BY_ID[entry.egg];
+  hatch.busy = true;
+  el.hatchBtn.disabled = true;
+  el.hatchTitle.textContent = '흔들… 흔들…';
+  el.hatchSub.textContent = '금이 가고 있어요!';
+
+  el.eggWrap.classList.remove('cracking', 'bursting');
+  el.eggWrap.classList.add('shake');
+  sfx.crack(0.35);
+  await wait(190);
+  sfx.crack(0.5);
+  await wait(200);
+  el.eggWrap.classList.remove('shake');
+  el.eggWrap.classList.add('cracking');
+  sfx.crack(1);
+  if (navigator.vibrate) {
+    try {
+      navigator.vibrate([10, 30, 14]);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  await wait(440);
+  el.eggWrap.classList.add('bursting');
+  el.hatchTitle.textContent = '쩍—!';
+
+  const result = hatchDragon(egg.id);
+  const dragon = dragons.add(result);
+  dragons.takePending(0);
+
+  await preloadDragonArt(dragon);
+  sfx.burst(RANK[dragon.rarity]);
+  await wait(240);
+  showDragonReveal(dragon);
+  hatch.busy = false;
+  el.hatchBtn.disabled = false;
+  updateHud();
+  return dragon;
+}
+
+function showDragonReveal(dragon) {
+  const rar = dragonRarity(dragon);
+  fx.clear();
+  el.hatchStage.hidden = true;
+  el.revealWrap.hidden = false;
+  el.revealCard.innerHTML = dragonCard(dragon, { isNew: true });
+  const card = el.revealCard.querySelector('.dc');
+  requestAnimationFrame(() => card && card.classList.add('pop'));
+
+  el.app.classList.add('fx-top');
+  fx.setAccent(rar.color);
+  fx.celebrate(Math.max(1, rar.rank), window.innerWidth / 2, Math.min(window.innerHeight * 0.36, 300), {
+    rainbow: !!rar.rainbow,
+    color: rar.color,
+  });
+  setTimeout(() => el.app.classList.remove('fx-top'), 2200);
+  sfx.reveal(Math.max(1, rar.rank));
+
+  if (navigator.vibrate) {
+    try {
+      navigator.vibrate(rar.rank >= 2 ? [20, 45, 30] : 14);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  updateHatchStep();
+}
+
+async function hatchNext() {
+  if (!dragons.pending.length) return closeHatch();
+  hatch.uid = dragons.pending[0].uid;
+  const egg = EGG_BY_ID[dragons.pending[0].egg];
+  el.hatchEggImg.src = egg.img;
+  el.hatchEggImg.alt = egg.name;
+  resetEggStage();
+  updateHatchStep();
+  await wait(60);
+  hatchCurrent();
 }
 
 /* ------------------------------------------------------------------- dex -- */
@@ -225,8 +521,52 @@ function buildDex() {
   el.odds.textContent = `확률 — ${oddsText()}`;
 }
 
+function renderDragons() {
+  const list = dragons.all();
+  el.dragonEmpty.hidden = list.length > 0;
+  el.dragonGrid.innerHTML = list
+    .slice(0, 60)
+    .map((d) => {
+      const rar = RARITY[d.rarity];
+      return `<button class="dg" type="button" data-id="${d.id}" data-rarity="${d.rarity}" style="--rar:${rar.color}" aria-label="${esc(
+        dragonName(d)
+      )} #${d.serial} 상세 보기">
+        <span class="dg-art"><img alt="" draggable="false" data-thumb="${d.id}" src="${BLANK}" /></span>
+        <span class="dg-name">${esc(dragonName(d))}</span>
+        <span class="dg-sub"><i>#${pad3(d.serial)}</i><span>${rar.label}</span></span>
+      </button>`;
+    })
+    .join('');
+
+  const byId = new Map(list.map((d) => [d.id, d]));
+  for (const img of el.dragonGrid.querySelectorAll('img[data-thumb]')) {
+    const d = byId.get(img.dataset.thumb);
+    if (!d) continue;
+    dragonThumb(d, PARTS_BASE, 256).then((url) => {
+      if (url && img.isConnected) {
+        img.src = url;
+        img.dataset.ready = '1';
+      }
+    });
+  }
+}
+
+function setTab(tab) {
+  dexTab = tab;
+  const on = tab === 'dragons';
+  el.tabEggs.classList.toggle('is-on', !on);
+  el.tabDragons.classList.toggle('is-on', on);
+  el.tabEggs.setAttribute('aria-selected', String(!on));
+  el.tabDragons.setAttribute('aria-selected', String(on));
+  el.eggPanel.hidden = on;
+  el.dragonPanel.hidden = !on;
+  if (on) renderDragons();
+  updateHud();
+}
+
 function openDex() {
   updateHud();
+  renderDragons();
   el.dex.classList.add('open');
   el.dex.setAttribute('aria-hidden', 'false');
   el.sheetBackdrop.classList.add('show');
@@ -237,6 +577,20 @@ function closeDex() {
   el.dex.classList.remove('open');
   el.dex.setAttribute('aria-hidden', 'true');
   el.sheetBackdrop.classList.remove('show');
+}
+
+function openDetail(dragon) {
+  if (!dragon) return;
+  el.detailBox.innerHTML = `${dragonCard(dragon)}<button class="btn btn-secondary detail-close" type="button" id="detailClose"><span class="btn-label">닫기</span></button>`;
+  el.detail.classList.add('open');
+  el.detail.setAttribute('aria-hidden', 'false');
+  el.detailBox.querySelector('#detailClose').addEventListener('click', closeDetail);
+  sfx.click();
+}
+
+function closeDetail() {
+  el.detail.classList.remove('open');
+  el.detail.setAttribute('aria-hidden', 'true');
 }
 
 /* ---------------------------------------------------------------- events -- */
@@ -256,19 +610,59 @@ el.soundBtn.addEventListener('click', () => {
 el.dexBtn.addEventListener('click', openDex);
 el.dexClose.addEventListener('click', closeDex);
 el.sheetBackdrop.addEventListener('click', closeDex);
+el.tabEggs.addEventListener('click', () => setTab('eggs'));
+el.tabDragons.addEventListener('click', () => setTab('dragons'));
+
+el.dragonGrid.addEventListener('click', (e) => {
+  const btn = e.target.closest('.dg');
+  if (!btn) return;
+  openDetail(dragons.find(btn.dataset.id));
+});
+
+el.detail.addEventListener('click', (e) => {
+  if (e.target === el.detail) closeDetail();
+});
+
+el.hatchCue.addEventListener('click', () => openHatch());
+el.hatchClose.addEventListener('click', closeHatch);
+el.hatchBtn.addEventListener('click', hatchCurrent);
+el.eggWrap.addEventListener('click', hatchCurrent);
+el.eggWrap.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    hatchCurrent();
+  }
+});
+el.nextHatch.addEventListener('click', hatchNext);
+el.revealClose.addEventListener('click', closeHatch);
+
+// tapping the landed egg card in the roulette hatches it too
+$('#roulette').addEventListener('click', (e) => {
+  if (busy || !dragons.pending.length) return;
+  const card = e.target.closest('.card.is-center');
+  if (card) openHatch();
+});
+
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeDex();
+  if (e.key !== 'Escape') return;
+  if (el.detail.classList.contains('open')) return closeDetail();
+  if (el.hatch.classList.contains('open')) return closeHatch();
+  closeDex();
 });
 
 let resetArm = 0;
 el.resetBtn.addEventListener('click', () => {
   if (Date.now() < resetArm) {
     collection.reset();
+    dragons.reset();
+    clearThumbs();
+    renderDragons();
     updateHud();
     el.resetBtn.textContent = '기록 초기화';
     el.resetBtn.classList.remove('armed');
     resetArm = 0;
     setIdleBanner();
+    closeHatch();
     el.hint.textContent = '알을 뽑으면 도감에 기록돼요';
     sfx.click();
   } else {
@@ -299,7 +693,8 @@ window.addEventListener('pointerdown', unlock, { once: true });
 
 buildDex();
 updateHud();
-el.miniOdds.textContent = `8종의 알 · 전설 0.4%`;
+renderDragons();
+el.miniOdds.textContent = '8종의 알 · 전설 0.4%';
 renderSlots();
 el.soundBtn.setAttribute('aria-pressed', String(sfx.enabled));
 el.app.classList.toggle('muted', !sfx.enabled);
@@ -318,7 +713,7 @@ const preload = Promise.all(
   )
 );
 
-// small hook so automated tests can drive the game deterministically
+/* small hook so automated tests can drive the game deterministically */
 window.__eggGacha = {
   ready: false,
   pull,
@@ -334,10 +729,40 @@ window.__eggGacha = {
     pulls: collection.pulls,
     counts: { ...collection.counts },
     dexOpen: el.dex.classList.contains('open'),
+    hatchOpen: el.hatch.classList.contains('open'),
+    pending: dragons.pending.map((p) => p.egg),
+    dragons: dragons.count,
+    dragonList: dragons.all().map((d) => ({
+      id: d.id,
+      serial: d.serial,
+      egg: d.egg,
+      rarity: d.rarity,
+      parts: { ...d.parts },
+      affinity: d.affinity,
+    })),
   }),
   eggIds: EGGS.map((e) => e.id),
   fx,
   roulette,
+  // dragon hooks
+  hatchDragon,
+  hatchCurrent,
+  hatchNext,
+  seedDragons: (n = 12) => {
+    const ids = EGGS.map((e) => e.id);
+    for (let i = 0; i < n; i++) dragons.add(hatchDragon(ids[i % ids.length]));
+    updateHud();
+    renderDragons();
+    return dragons.count;
+  },
+  openHatch,
+  closeHatch,
+  partCount: DRAGON_LAYERS.reduce((s, l) => s + l.parts.length, 0),
+  layers: DRAGON_LAYERS.map((l) => ({ id: l.id, ko: l.ko, count: l.parts.length })),
+  partWeight: PART_WEIGHT,
+  elementFamily: ELEMENT_FAMILY,
+  parts: DRAGON_LAYERS.flatMap((l) => l.parts.map((p) => ({ layer: l.id, ...p }))),
+  partBase: PARTS_BASE,
 };
 
 preload.then(() => {

@@ -10,7 +10,11 @@
     "preview": "vite preview --port 4173 --host 127.0.0.1",
     "test": "node tools/test.mjs",
     "shots": "node tools/shots.mjs",
-    "subpath": "node tools/subpath-test.mjs"
+    "subpath": "node tools/subpath-test.mjs",
+    "test:all": "node tools/test.mjs && node tools/dragon-test.mjs",
+    "dragon": "node tools/dragon-test.mjs",
+    "parts": "node tools/render-parts.mjs",
+    "shots:dragon": "node tools/dragon-shots.mjs"
   },
   "devDependencies": {
     "playwright": "1.61.1",
