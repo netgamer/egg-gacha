@@ -6,7 +6,8 @@ import { Roulette } from './roulette.js';
 import { Collection } from './collection.js';
 import { DragonCollection } from './dragon-collection.js';
 import { dragonThumb, clearThumbs, BLANK } from './dragon-thumb.js';
-import { composeCardUrl, preloadDragonArt as preloadArt, clearArtCache, clearCardCache, pruneArtCache, debugCompose } from './dragon-compose.js';
+import { composeCardUrl, preloadDragonArt as preloadArt, clearArtCache, clearCardCache, pruneArtCache, debugCompose, dragonSilhouette } from './dragon-compose.js';
+import { mountAura, stopAuras, auraStats, auraSeed } from './dragon-aura.js';
 import {
   DRAGON_LAYERS,
   ELEMENT_META,
@@ -282,7 +283,24 @@ function artMarkup(dragon) {
   // One canvas rather than six <img> layers: the compositor lights the six
   // paintings with the same environment, which is what makes a cross-theme
   // hatch look like one painting instead of six stickers.
-  return `<img class="dc-canvas" data-dragon="${dragon.id}" alt="" draggable="false" decoding="async" />`;
+  // The <canvas> on top is the live elemental aura (dragon-aura.js).
+  return `<img class="dc-canvas" data-dragon="${dragon.id}" alt="" draggable="false" decoding="async" />
+    <canvas class="dc-aura" data-aura="${dragonElement(dragon)}" aria-hidden="true"></canvas>`;
+}
+
+/** Mount the animated aura on a card's canvas once its outline is known. */
+async function mountCardAura(canvas, dragon) {
+  if (!canvas || !canvas.getContext) return;
+  const element = dragonElement(dragon);
+  let profile = null;
+  try {
+    profile = await dragonSilhouette(dragon, PARTS_BASE);
+  } catch (_) {
+    profile = null;
+  }
+  // the card may have been closed or swapped while the outline loaded
+  if (!canvas.isConnected) return;
+  mountAura(canvas, { element, profile, seed: auraSeed(`${dragon.id}:${element}`) });
 }
 
 /** Paint every dragon card inside `root` (reveal card, detail modal). */
@@ -290,6 +308,8 @@ function paintCards(root) {
   for (const img of root.querySelectorAll('img.dc-canvas[data-dragon]')) {
     const d = dragons.find(img.dataset.dragon);
     if (!d) continue;
+    const canvas = img.parentElement ? img.parentElement.querySelector('canvas.dc-aura') : null;
+    mountCardAura(canvas, d);
     const box = img.parentElement ? img.parentElement.clientWidth : 320;
     composeCardUrl(d, PARTS_BASE, Math.min(560, Math.max(320, box * Math.min(2, window.devicePixelRatio || 1))))
       .then((url) => {
@@ -373,6 +393,7 @@ function pendingIndex(uid) {
 }
 
 function resetEggStage() {
+  stopAuras(el.revealCard);
   el.hatchStage.hidden = false;
   el.revealWrap.hidden = true;
   el.revealCard.innerHTML = '';
@@ -412,6 +433,7 @@ function openHatch(uid) {
 }
 
 function closeHatch() {
+  stopAuras(el.revealCard);
   pruneArtCache(6);
   el.hatch.classList.remove('open');
   el.hatch.setAttribute('aria-hidden', 'true');
@@ -468,6 +490,7 @@ async function hatchCurrent() {
 function showDragonReveal(dragon) {
   const rar = dragonRarity(dragon);
   fx.clear();
+  stopAuras(el.revealCard);
   el.hatchStage.hidden = true;
   el.revealWrap.hidden = false;
   el.revealCard.innerHTML = dragonCard(dragon, { isNew: true });
@@ -597,6 +620,7 @@ function closeDex() {
 
 function openDetail(dragon) {
   if (!dragon) return;
+  stopAuras(el.detailBox);
   el.detailBox.innerHTML = `${dragonCard(dragon)}<button class="btn btn-secondary detail-close" type="button" id="detailClose"><span class="btn-label">닫기</span></button>`;
   paintCards(el.detailBox);
   el.detail.classList.add('open');
@@ -606,6 +630,7 @@ function openDetail(dragon) {
 }
 
 function closeDetail() {
+  stopAuras(el.detailBox);
   el.detail.classList.remove('open');
   el.detail.setAttribute('aria-hidden', 'true');
 }
@@ -776,6 +801,23 @@ window.__eggGacha = {
   },
   openHatch,
   closeHatch,
+  auraStats,
+  seedDragon: (egg, parts) => {
+    const d = dragons.add({ egg: egg || 'white', parts: { ...parts }, rarity: 'rare', affinity: 1 });
+    updateHud();
+    return d.id;
+  },
+  openDetailById: (id) => openDetail(dragons.find(id)),
+  // open the hatch modal on an already-known dragon (deterministic screenshots)
+  openRevealById: (id) => {
+    const d = dragons.find(id);
+    if (!d) return false;
+    el.hatch.classList.add('open');
+    el.hatch.setAttribute('aria-hidden', 'false');
+    el.app.classList.add('hatching');
+    showDragonReveal(d);
+    return true;
+  },
   partCount: DRAGON_LAYERS.reduce((s, l) => s + l.parts.length, 0),
   layers: DRAGON_LAYERS.map((l) => ({ id: l.id, ko: l.ko, count: l.parts.length })),
   partWeight: PART_WEIGHT,

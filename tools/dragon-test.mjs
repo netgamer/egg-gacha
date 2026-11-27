@@ -362,6 +362,92 @@ await phase('mobile — 드래곤 도감 · 새로고침 유지 · 상세', MOBI
   ok(errors.length === 0, `오류 0 (${errors.join(' | ') || 'none'})`);
 });
 
+/* ------------------------------------------------- 4c. live elemental aura */
+await phase('mobile — 속성별 실시간 오라 (rAF)', MOBILE, async ({ page, errors, goto }) => {
+  await goto();
+  const info = await page.evaluate(() => {
+    const G = window.__eggGacha;
+    const p = (id) => ({ bg: id, wings: id, body: id, eyes: id, horns: id, acc: id });
+    const id = G.seedDragon('fire', p('magma'));
+    G.openRevealById(id);
+    return id;
+  });
+  ok(!!info, '불 드래곤 공개 카드 열림');
+  await page.waitForSelector('#revealCard canvas.dc-aura', { timeout: 20000 });
+  const box = await page.evaluate(() => {
+    const c = document.querySelector('#revealCard canvas.dc-aura');
+    return { el: c.dataset.aura, w: c.width, h: c.height };
+  });
+  ok(box.el === 'fire', `카드 속성 = fire (${box.el})`);
+  ok(box.w >= 220 && Math.abs(box.h / box.w - 1.25) < 0.06, `오라 캔버스 ${box.w}×${box.h} (4:5)`);
+
+  const a1 = await page.evaluate(() => window.__eggGacha.auraStats());
+  await page.waitForTimeout(600);
+  const a2 = await page.evaluate(() => window.__eggGacha.auraStats());
+  const f1 = a1[0] || {};
+  const f2 = a2[0] || {};
+  ok(f1.running === true, 'rAF 루프 실행 중');
+  ok(f2.frames > f1.frames + 8, `프레임 증가 ${f1.frames} → ${f2.frames}`);
+  ok(f2.checksum !== f1.checksum, `캔버스 픽셀이 시간에 따라 변함 (${f1.checksum} → ${f2.checksum})`);
+  ok(f2.checksum > 0, '오라 캔버스가 비어 있지 않음');
+
+  // closing the card must cancel the loop
+  await page.click('#revealClose', { noWaitAfter: true });
+  await page.waitForTimeout(250);
+  const after = await page.evaluate(() => window.__eggGacha.auraStats());
+  ok(after.length === 0, `카드 닫으면 오라 루프 정지 (live ${after.length})`);
+  ok(errors.length === 0, `오류 0 (${errors.join(' | ') || 'none'})`);
+});
+
+/* --------------------------------------------------- 4d. no leak over a 5-hatch run */
+await phase('mobile — 5연속 부화 중 오라 정리', MOBILE, async ({ page, errors, goto }) => {
+  await goto();
+  const live = [];
+  for (const [egg, theme] of [
+    ['fire', 'magma'],
+    ['ice', 'frost'],
+    ['forest', 'moss'],
+  ]) {
+    await page.evaluate(
+      ({ egg, theme }) => {
+        const G = window.__eggGacha;
+        const p = (id) => ({ bg: id, wings: id, body: id, eyes: id, horns: id, acc: id });
+        G.openRevealById(G.seedDragon(egg, p(theme)));
+      },
+      { egg, theme }
+    );
+    await page.waitForTimeout(620);
+    const st = await page.evaluate(() => window.__eggGacha.auraStats());
+    live.push(st.length);
+  }
+  ok(
+    live.every((n) => n <= 1),
+    `공개 카드를 바꿀 때마다 이전 오라 정지 (활성 수 ${live.join(', ')})`
+  );
+  ok(live[live.length - 1] === 1, '마지막 카드만 애니메이션' );
+  await page.click('#revealClose', { noWaitAfter: true });
+  await page.waitForTimeout(250);
+  ok((await page.evaluate(() => window.__eggGacha.auraStats())).length === 0, '닫은 뒤 활성 오라 0');
+  ok(errors.length === 0, `오류 0 (${errors.join(' | ') || 'none'})`);
+});
+
+/* ------------------------------------------------ 4e. prefers-reduced-motion */
+await phase('mobile — 동작 줄이기 설정 존중', { ...MOBILE, reducedMotion: 'reduce' }, async ({ page, errors, goto }) => {
+  await goto();
+  await page.evaluate(() => {
+    const G = window.__eggGacha;
+    const p = (id) => ({ bg: id, wings: id, body: id, eyes: id, horns: id, acc: id });
+    G.openRevealById(G.seedDragon('ice', p('frost')));
+  });
+  await page.waitForSelector('#revealCard canvas.dc-aura', { timeout: 20000 });
+  await page.waitForTimeout(400);
+  const st = (await page.evaluate(() => window.__eggGacha.auraStats()))[0] || {};
+  ok(st.reduced === true, 'reduce 설정 감지');
+  ok(st.running === false && st.frames <= 1, `루프 없이 정지 프레임만 (frames ${st.frames})`);
+  ok(st.checksum > 0, '정지 프레임도 그려짐');
+  ok(errors.length === 0, `오류 0 (${errors.join(' | ') || 'none'})`);
+});
+
 /* ------------------------------------------------------- 5. layout checks */
 await phase('mobile/desktop — 부화 화면 레이아웃', MOBILE, async ({ page, errors, goto }) => {
   await page.addInitScript(() => {

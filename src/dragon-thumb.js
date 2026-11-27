@@ -7,6 +7,8 @@
  * the thumbnail runs the same environment passes at 240x300.
  */
 import { loadDragonArt, composeUrl } from './dragon-compose.js';
+import { dragonElement } from './dragon.js';
+import { auraSeed } from './dragon-aura.js';
 
 const thumbCache = new Map();
 const BLANK =
@@ -19,7 +21,11 @@ export async function dragonThumb(dragon, base, width = 240) {
   if (thumbCache.has(key)) return thumbCache.get(key);
   const layers = await loadDragonArt(dragon, base, { small: width <= 256 });
   if (!layers) return '';
-  const url = composeUrl(layers, width, Math.round((width * 5) / 4), { grain: width > 256 });
+  const url = composeUrl(layers, width, Math.round((width * 5) / 4), {
+    grain: width > 256,
+    element: dragonElement(dragon),
+    seed: auraSeed(`${dragon.parts.body}|${dragon.parts.horns}|${dragon.parts.acc}`),
+  });
   if (url) thumbCache.set(key, url);
   return url;
 }

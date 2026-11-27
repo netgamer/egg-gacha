@@ -20,7 +20,8 @@
     "parts:atlas": "python3 tools/proto-art/pipeline.py atlas",
     "parts:mix": "python3 tools/proto-art/pipeline.py mix",
     "parts:sheet": "python3 tools/proto-art/pipeline.py sheet",
-    "live": "node tools/live-check.mjs"
+    "live": "node tools/live-check.mjs",
+    "shots:aura": "node tools/aura-shots.mjs"
   },
   "devDependencies": {
     "playwright": "1.61.1",
