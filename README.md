@@ -63,6 +63,8 @@ npm run shots    # shots/*.png 재촬영
 - 도감: 저장값 복원, 발견/미발견 표시, 확률 문구, 두 번 눌러 초기화
 - `localStorage` 새로고침 유지, 소리 토글 상태
 
+`npm run subpath`는 `gh-pages` 브랜치 내용을 `/tmp/ghtest/egg-gacha/`에 풀어 `http://127.0.0.1:<port>/egg-gacha/` 로 열어 봅니다. GitHub Pages의 하위 경로 서빙을 그대로 재현한 검증입니다.
+
 ```bash
 # 실행 (샌드박스 기준 환경변수)
 export PATH=/workspace/.tools/node-v22.23.5-linux-x64/bin:$PATH

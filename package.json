@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview --port 4173 --host 127.0.0.1",
     "test": "node tools/test.mjs",
-    "shots": "node tools/shots.mjs"
+    "shots": "node tools/shots.mjs",
+    "subpath": "node tools/subpath-test.mjs"
   },
   "devDependencies": {
     "playwright": "1.61.1",
