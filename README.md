@@ -153,6 +153,7 @@ npm test:all     # 위 두 개
 npm run shots:dragon
 npm run shots:tiers   # 등급별 테두리 4종 (공개·상세·도감)
 npm run live     # 배포본 라이브 검증
+npm run live:tiers  # 배포본에서 등급 테두리 4종 확인
 ```
 
 ### 파츠 아트 재생성

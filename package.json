@@ -22,7 +22,8 @@
     "parts:mix": "python3 tools/proto-art/pipeline.py mix",
     "parts:sheet": "python3 tools/proto-art/pipeline.py sheet",
     "live": "node tools/live-check.mjs",
-    "shots:aura": "node tools/aura-shots.mjs"
+    "shots:aura": "node tools/aura-shots.mjs",
+    "live:tiers": "node tools/live-tiers.mjs"
   },
   "devDependencies": {
     "playwright": "1.61.1",
