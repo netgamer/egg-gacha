@@ -3,8 +3,8 @@
  *
  * The baked composite (dragon-compose.js) carries a painted aura so a dragon
  * still reads as "fire" in the fast dex grid; this module adds the part that
- * moves: flame tongues that lick up from the dragon's own silhouette, wind
- * driven snow, sunbeams, crackling arcs, dust.  It runs as one Canvas2D layer
+ * moves: flame tongues that lick up from the dragon's own silhouette, a gusting
+ * blizzard of soft snow, gentle forest sunlight, crackling arcs, dust.  It runs as one Canvas2D layer
  * over the portrait on the reveal card and the detail modal, drawn with
  * additive blending so it sits *in* the painting instead of on top of it.
  *
@@ -65,6 +65,36 @@ export function auraSeed(str) {
 }
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+/**
+ * Alpha centroid of a small layer bake, normalised to 0..1.
+ * Used to find the eye — the most reliable "where the face is" signal, so the
+ * gentle elements can keep their light and big out-of-focus snow off it.
+ */
+export function alphaCentroid(canvas, threshold = 40) {
+  if (!canvas) return null;
+  let data;
+  try {
+    data = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height).data;
+  } catch (_) {
+    return null;
+  }
+  const w = canvas.width;
+  const h = canvas.height;
+  let sx = 0;
+  let sy = 0;
+  let n = 0;
+  for (let py = 0; py < h; py++) {
+    for (let px = 0; px < w; px++) {
+      if (data[(py * w + px) * 4 + 3] < threshold) continue;
+      sx += px;
+      sy += py;
+      n++;
+    }
+  }
+  if (n < 6) return null;
+  return { x: sx / n / w, y: sy / n / h };
+}
 
 /* ------------------------------------------------------- silhouette data -- */
 /**
@@ -197,6 +227,39 @@ function starSprite(rgb) {
   });
 }
 
+/** Soft feathered shaft: sideways falloff is a multi-stop gradient, so the
+ *  sides never show an edge even if canvas filters are unavailable. */
+function shaftSprite(rgb) {
+  return sprite(`shaft:${rgb}`, () => {
+    const w = 192;
+    const h = 448;
+    const c = cv(w, h);
+    const x = c.getContext('2d');
+    const hg = x.createLinearGradient(0, 0, w, 0);
+    hg.addColorStop(0, `rgba(${rgb},0)`);
+    hg.addColorStop(0.16, `rgba(${rgb},0.08)`);
+    hg.addColorStop(0.3, `rgba(${rgb},0.3)`);
+    hg.addColorStop(0.42, `rgba(${rgb},0.62)`);
+    hg.addColorStop(0.5, `rgba(${rgb},0.72)`);
+    hg.addColorStop(0.58, `rgba(${rgb},0.62)`);
+    hg.addColorStop(0.7, `rgba(${rgb},0.3)`);
+    hg.addColorStop(0.84, `rgba(${rgb},0.08)`);
+    hg.addColorStop(1, `rgba(${rgb},0)`);
+    x.fillStyle = hg;
+    x.fillRect(0, 0, w, h);
+    const vg = x.createLinearGradient(0, 0, 0, h);
+    vg.addColorStop(0, 'rgba(0,0,0,0.95)');
+    vg.addColorStop(0.4, 'rgba(0,0,0,0.55)');
+    vg.addColorStop(0.8, 'rgba(0,0,0,0.12)');
+    vg.addColorStop(1, 'rgba(0,0,0,0)');
+    x.globalCompositeOperation = 'destination-in';
+    x.fillStyle = vg;
+    x.fillRect(0, 0, w, h);
+    x.globalCompositeOperation = 'source-over';
+    return c;
+  });
+}
+
 /** Soft sunbeam: bright at the top, feathered on both sides. */
 function beamSprite(rgb) {
   return sprite(`beam:${rgb}`, () => {
@@ -223,6 +286,26 @@ function beamSprite(rgb) {
   });
 }
 
+/** Snow flake: white core with a cool rim, so it still reads over pale ice.
+ *  Drawn with source-over — snow is not a light source. */
+function snowSprite() {
+  return sprite('snowflake', () => {
+    const s = 64;
+    const c = cv(s, s);
+    const x = c.getContext('2d');
+    const g = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.24, 'rgba(240,248,255,0.92)');
+    g.addColorStop(0.45, 'rgba(198,222,242,0.8)');
+    g.addColorStop(0.68, 'rgba(160,190,215,0.42)');
+    g.addColorStop(0.88, 'rgba(140,172,200,0.14)');
+    g.addColorStop(1, 'rgba(130,165,195,0)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, s, s);
+    return c;
+  });
+}
+
 /** Large soft cloud for mist. */
 function mistSprite(rgb) {
   return sprite(`mist:${rgb}`, () => {
@@ -244,8 +327,10 @@ function mistSprite(rgb) {
 /** Shared sprite access for the baked (painted) aura in dragon-compose.js. */
 export function auraSprite(kind, rgb) {
   if (kind === 'dot') return dotSprite(rgb);
+  if (kind === 'snow') return snowSprite();
   if (kind === 'star') return starSprite(rgb);
   if (kind === 'beam') return beamSprite(rgb);
+  if (kind === 'shaft') return shaftSprite(rgb);
   if (kind === 'mist') return mistSprite(rgb);
   return glowSprite(rgb);
 }
@@ -294,7 +379,8 @@ export class AuraField {
     this.parts = [];
     this.sparks = [];
     this.embers = [];
-    this.streaks = [];
+    this.flakes = [];
+    this.puffs = [];
     this.motes = [];
     this.arcs = [];
     this.beams = [];
@@ -368,19 +454,17 @@ export class AuraField {
     this.spawnAcc = 0;
     this.nextBolt = 0.3 + r() * 0.5;
 
-    /* ice — wind blown streaks + flakes + mist */
-    this.streaks = [];
-    const streakN = Math.round(32 + (W * H) / 14000);
-    for (let i = 0; i < streakN; i++) {
-      this.streaks.push({
-        x: r() * (W + 80) - 40,
-        y: r() * (H + 60) - 30,
-        len: (10 + r() * 46) * k,
-        sp: (150 + r() * 260) * k,
-        a: 0.12 + r() * 0.4,
-        w: (0.9 + r() * 1.5) * k,
-        ph: r() * TAU,
-      });
+    /* ice — a real blizzard: soft snow in three sizes, no straight streaks */
+    this.flakes = [];
+    this.puffs = [];
+    if (this.key === 'ice') {
+      const area = W * H;
+      const dustN = Math.round(clamp(area / 2400, 60, 170));
+      const flakeN = Math.round(clamp(area / 5200, 30, 76));
+      const puffN = Math.round(clamp(area / 34000, 7, 14));
+      for (let i = 0; i < dustN; i++) this.flakes.push(this._newSnow(0, true));
+      for (let i = 0; i < flakeN; i++) this.flakes.push(this._newSnow(1, true));
+      for (let i = 0; i < puffN; i++) this.puffs.push(this._newSnow(2, true));
     }
     this.motes = [];
     const moteN = this.key === 'white' || this.key === 'spotted' ? 20 : 26;
@@ -389,36 +473,64 @@ export class AuraField {
     }
     this.beams = [];
     if (this.key === 'forest') {
-      for (let i = 0; i < 6; i++) {
+      // afternoon light from the top-back corner: wide, feathered, barely there
+      for (let i = 0; i < 4; i++) {
         this.beams.push({
-          x: W * (0.26 + r() * 0.74),
-          y: -H * (0.02 + r() * 0.06),
-          w: (18 + r() * 34) * k,
-          len: H * (1.0 + r() * 0.5),
-          a: 0.15 + r() * 0.12,
-          ang: 0.52 + (r() - 0.5) * 0.18,
+          x: W * (0.55 + r() * 0.5),
+          y: -H * (0.04 + r() * 0.06),
+          w: (74 + r() * 74) * k,
+          len: H * (1.1 + r() * 0.45),
+          a: 0.06 + r() * 0.05,
+          ang: 0.62 + (r() - 0.5) * 0.2,
           ph: r() * TAU,
         });
       }
     }
     this.mist = [];
-    for (let i = 0; i < 3; i++) {
+    const iceMist = this.key === 'ice';
+    const mistN = iceMist ? 8 : 3;
+    for (let i = 0; i < mistN; i++) {
       this.mist.push({
         x: r() * W,
-        y: H * (0.45 + r() * 0.5),
-        r: (110 + r() * 120) * k,
-        a: 0.03 + r() * 0.05,
-        sp: (6 + r() * 14) * k,
+        y: H * (iceMist ? 0.42 + r() * 0.6 : 0.45 + r() * 0.5),
+        r: (iceMist ? 92 + r() * 108 : 110 + r() * 120) * k,
+        sx: iceMist ? 1.9 + r() * 1.3 : 1,
+        sy: iceMist ? 0.4 + r() * 0.26 : 1,
+        a: iceMist ? 0.07 + r() * 0.06 : 0.03 + r() * 0.05,
+        sp: (iceMist ? 24 + r() * 32 : 6 + r() * 14) * k,
         ph: r() * TAU,
       });
     }
+  }
+
+  /** One snow particle — 0 = fine dust, 1 = soft flake, 2 = out-of-focus puff. */
+  _newSnow(tier, spread = false) {
+    const W = this.W;
+    const H = this.H;
+    const k = this.k;
+    const r = () => this._r();
+    const spec =
+      tier === 0
+        ? { r: (1.6 + r() * 2.0) * k, vy: (30 + r() * 40) * k, vx: -(5 + r() * 12) * k, sway: (9 + r() * 16) * k, a: 0.42 + r() * 0.3 }
+        : tier === 1
+          ? { r: (5 + r() * 4) * k, vy: (40 + r() * 50) * k, vx: -(7 + r() * 16) * k, sway: (12 + r() * 24) * k, a: 0.55 + r() * 0.3 }
+          : { r: (12 + r() * 13) * k, vy: (54 + r() * 50) * k, vx: -(18 + r() * 26) * k, sway: (22 + r() * 34) * k, a: 0.1 + r() * 0.08 };
+    return {
+      tier,
+      x: spread ? r() * W : r() * W * 1.15,
+      y: spread ? r() * H : -30 * k - r() * H * 0.25,
+      ...spec,
+      sw: 1.05 + r() * 1.9,
+      ph: r() * TAU,
+      tw: 0.5 + r() * 1.6,
+    };
   }
 
   _newMote(spread = false) {
     const W = this.W;
     const H = this.H;
     const k = this.k;
-    const up = this.key !== 'ice';
+    const up = this.key !== 'ice' && this.key !== 'forest';
     const p = this._edgePick(0.6);
     return {
       x: spread ? this._r() * W : (p.x + (this._r() - 0.5) * 0.1) * W,
@@ -548,15 +660,45 @@ export class AuraField {
     }
 
     if (this.key === 'ice') {
-      for (const s of this.streaks) {
-        s.y += s.sp * dt;
-        s.x -= s.sp * 0.44 * dt;
-        if (s.y > H + 40 * k || s.x < -60 * k) {
-          s.x = r() * (W + 280 * k) - 40 * k;
-          s.y = -r() * 120 * k;
-          s.len = (10 + r() * 46) * k;
-          s.sp = (150 + r() * 260) * k;
-          s.a = 0.12 + r() * 0.4;
+      // gusting wind: a slow swell plus a faster ripple, so flakes arc instead
+      // of running down in straight lines
+      const gust = Math.sin(this.t * 0.42) * 0.62 + Math.sin(this.t * 1.17 + 0.8) * 0.38;
+      const sweep = (p) => {
+        const wind = (p.tier === 0 ? 30 : p.tier === 1 ? 22 : 15) * k * gust;
+        p.x += (p.vx + wind + Math.sin(this.t * p.sw + p.ph) * p.sway) * dt;
+        p.y += p.vy * dt;
+      };
+      for (const f of this.flakes) {
+        sweep(f);
+        const pad = f.r * 4 + 26 * k;
+        if (f.y > H + pad || f.x < -pad || f.x > W + pad) {
+          const n = this._newSnow(f.tier, false);
+          f.x = n.x;
+          f.y = -pad;
+          f.vx = n.vx;
+          f.vy = n.vy;
+          f.sway = n.sway;
+          f.r = n.r;
+          f.a = n.a;
+          f.sw = n.sw;
+          f.ph = n.ph;
+          f.tw = n.tw;
+        }
+      }
+      for (const p of this.puffs) {
+        sweep(p);
+        const pad = p.r * 3 + 40 * k;
+        if (p.y > H + pad || p.x < -pad || p.x > W + pad) {
+          const n = this._newSnow(2, false);
+          p.x = n.x;
+          p.y = -pad;
+          p.vx = n.vx;
+          p.vy = n.vy;
+          p.sway = n.sway;
+          p.r = n.r;
+          p.a = n.a;
+          p.sw = n.sw;
+          p.ph = n.ph;
         }
       }
     }
@@ -667,7 +809,7 @@ export class AuraField {
 
     for (const m of this.mist) {
       m.x += m.sp * dt;
-      if (m.x - m.r > W) m.x = -m.r;
+      if (m.x - m.r * (m.sx || 1) > W) m.x = -m.r * (m.sx || 1);
     }
   }
 
@@ -721,8 +863,10 @@ export class AuraField {
       ctx.globalCompositeOperation = 'source-over';
       const mist = mistSprite(M.rgb);
       for (const m of this.mist) {
-        ctx.globalAlpha = m.a;
-        ctx.drawImage(mist, m.x - m.r, m.y - m.r, m.r * 2, m.r * 2);
+        const sx = m.r * (m.sx || 1);
+        const sy = m.r * (m.sy || 1);
+        ctx.globalAlpha = m.a * (0.8 + 0.2 * Math.sin(this.t * 0.5 + m.ph));
+        ctx.drawImage(mist, m.x - sx, m.y - sy, sx * 2, sy * 2);
       }
     }
 
@@ -778,35 +922,46 @@ export class AuraField {
   }
 
   _paintIce(ctx, dot, k) {
-    ctx.globalAlpha = 1;
-    const W = this.W;
-    const H = this.H;
-    ctx.lineCap = 'round';
-    ctx.globalCompositeOperation = 'lighter';
-    for (const s of this.streaks) {
-      const dx = -0.42 * s.len;
-      const dy = s.len;
-      ctx.strokeStyle = `rgba(214,244,255,${s.a * 0.28})`;
-      ctx.lineWidth = s.w * 3.2;
-      ctx.beginPath();
-      ctx.moveTo(s.x, s.y);
-      ctx.lineTo(s.x + dx, s.y + dy);
-      ctx.stroke();
-      ctx.strokeStyle = `rgba(255,255,255,${s.a})`;
-      ctx.lineWidth = s.w;
-      ctx.beginPath();
-      ctx.moveTo(s.x, s.y);
-      ctx.lineTo(s.x + dx, s.y + dy);
-      ctx.stroke();
-    }
+    const zone = this._faceZone();
+    const snow = snowSprite();
     ctx.globalCompositeOperation = 'source-over';
-    for (const m of this.motes) {
-      const tw = 0.45 + 0.55 * Math.abs(Math.sin(this.t * 1.4 + m.ph));
-      ctx.globalAlpha = 0.55 * tw;
-      const r = m.r * 2.4;
-      ctx.drawImage(dot, m.x - r, m.y - r, r * 2, r * 2);
+    // out-of-focus snow right in front of the lens: big, soft, never over the face
+    for (const p of this.puffs) {
+      let a = p.a * (0.74 + 0.26 * Math.sin(this.t * 0.7 + p.ph));
+      if (zone) a *= this._faceFade(p.x, p.y, zone, 0.7);
+      ctx.globalAlpha = a;
+      const rr = p.r * 2.2;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(-0.3);
+      ctx.drawImage(snow, -rr * 0.72, -rr * 0.52, rr * 1.44, rr * 1.04);
+      ctx.restore();
+    }
+    // flakes and fine snow dust, swaying on the gust; just a hint of drift so
+    // they read as falling snow, never as a streak
+    for (const f of this.flakes) {
+      let a = f.a * (0.76 + 0.24 * Math.sin(this.t * f.tw + f.ph));
+      if (f.tier === 1 && zone) a *= this._faceFade(f.x, f.y, zone, 0.3);
+      ctx.globalAlpha = a;
+      const rr = f.r * 2.4;
+      if (f.tier === 1) {
+        ctx.save();
+        ctx.translate(f.x, f.y);
+        ctx.rotate(-0.3 + Math.sin(this.t * 0.4 + f.ph) * 0.08);
+        ctx.drawImage(snow, -rr * 0.6, -rr * 0.5, rr * 1.2, rr);
+        ctx.restore();
+      } else ctx.drawImage(snow, f.x - rr * 0.5, f.y - rr * 0.5, rr, rr);
+    }
+    // icy glints so the fall catches the light
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.16;
+    for (const f of this.flakes) {
+      if (f.tier !== 1) continue;
+      const rr = f.r * 1.7;
+      ctx.drawImage(dot, f.x - rr * 0.5, f.y - rr * 0.5, rr, rr);
     }
     ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   _paintForest(ctx, dot, k) {
@@ -814,42 +969,76 @@ export class AuraField {
     const W = this.W;
     const H = this.H;
     ctx.globalCompositeOperation = 'lighter';
-    // the sun itself, just off the top-right corner
-    const sun = glowSprite('255,228,150');
-    const sr = 118 * k;
-    ctx.globalAlpha = 0.34 + 0.08 * Math.sin(this.t * 0.9);
-    ctx.drawImage(sun, W - sr * 0.55, -sr * 0.75, sr * 2, sr * 2);
-    ctx.globalAlpha = 1;
+    // the sun, just off the top-right corner: one broad feathered pool, no edges
+    const sun = ctx.createRadialGradient(W * 0.97, -H * 0.1, 0, W * 0.97, -H * 0.1, Math.max(W, H) * 0.95);
+    sun.addColorStop(0, 'rgba(255,240,190,0.32)');
+    sun.addColorStop(0.3, 'rgba(255,232,166,0.15)');
+    sun.addColorStop(0.66, 'rgba(255,224,148,0.04)');
+    sun.addColorStop(1, 'rgba(255,216,136,0)');
+    ctx.fillStyle = sun;
+    ctx.fillRect(0, 0, W, H);
 
-    // god rays: tapered shafts from the corner, each breathing on its own phase
+    // two barely-there shafts of afternoon light, feathered on every side
+    const shaft = auraSprite('shaft', '255,234,176');
     for (const b of this.beams) {
-      const a = b.a * 2.2 * (0.72 + 0.36 * Math.sin(this.t * 0.8 + b.ph));
+      const a = b.a * (0.72 + 0.28 * Math.sin(this.t * 0.5 + b.ph));
       ctx.save();
       ctx.translate(b.x, b.y);
-      ctx.rotate(b.ang + Math.sin(this.t * 0.5 + b.ph) * 0.03);
-      const g = ctx.createLinearGradient(0, 0, 0, b.len);
-      g.addColorStop(0, `rgba(255,244,206,${a})`);
-      g.addColorStop(0.32, `rgba(255,232,168,${a * 0.6})`);
-      g.addColorStop(1, 'rgba(255,226,150,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.moveTo(-b.w * 0.34, 0);
-      ctx.lineTo(b.w * 0.34, 0);
-      ctx.lineTo(b.w * 0.92, b.len);
-      ctx.lineTo(-b.w * 0.92, b.len);
-      ctx.closePath();
-      ctx.fill();
+      ctx.rotate(b.ang + Math.sin(this.t * 0.35 + b.ph) * 0.02);
+      ctx.globalAlpha = a;
+      ctx.drawImage(shaft, -b.w / 2, 0, b.w, b.len);
       ctx.restore();
     }
 
-    ctx.globalCompositeOperation = 'source-over';
+    // fade the light off the dragon's face so the eyes stay readable
+    this._carveFace(ctx, 0.6);
+
+    // sunlit dust drifting up through the glow
     for (const m of this.motes) {
       const tw = 0.35 + 0.65 * Math.abs(Math.sin(this.t * 1.1 + m.ph));
-      ctx.globalAlpha = 0.6 * tw;
-      const rr = m.r * 2.2;
-      ctx.drawImage(dot, m.x - rr, m.y - rr, rr * 2, rr * 2);
+      ctx.globalAlpha = 0.42 * tw;
+      const rr = m.r * 2.4;
+      ctx.drawImage(dot, m.x - rr * 0.5, m.y - rr * 0.5, rr, rr);
     }
     ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* ------------------------------------------------------- face keeping -- */
+
+  /** The area the gentle elements must not hide: the eye, else the crest top. */
+  _faceZone() {
+    const p = this.profile;
+    if (!p) return null;
+    if (p.face) return { x: p.face.x, y: p.face.y, rx: 0.3, ry: 0.24 };
+    if (p.head) return { x: clamp(p.head.x + 0.03, 0.1, 0.9), y: clamp(p.head.y + 0.14, 0.06, 0.92), rx: 0.3, ry: 0.24 };
+    return null;
+  }
+
+  /** 1 outside the face zone → 1-strength at its centre, smoothly. */
+  _faceFade(x, y, zone, strength = 0.7) {
+    const nx = (x - zone.x * this.W) / (zone.rx * this.W);
+    const ny = (y - zone.y * this.H) / (zone.ry * this.H);
+    const d = Math.min(1, Math.sqrt(nx * nx + ny * ny));
+    return 1 - strength * 0.5 * (1 + Math.cos(Math.PI * d));
+  }
+
+  /** Erase part of what was just painted inside the face zone (soft ellipse). */
+  _carveFace(ctx, strength = 0.55) {
+    const z = this._faceZone();
+    if (!z) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.translate(z.x * this.W, z.y * this.H);
+    ctx.scale(z.rx * this.W, z.ry * this.H);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    g.addColorStop(0, `rgba(0,0,0,${strength})`);
+    g.addColorStop(0.5, `rgba(0,0,0,${strength * 0.72})`);
+    g.addColorStop(0.82, `rgba(0,0,0,${strength * 0.22})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-1, -1, 2, 2);
+    ctx.restore();
   }
 
   _paintThunder(ctx, glow, hot, k) {
@@ -992,6 +1181,8 @@ export function auraStats() {
     frames: f.frames,
     reduced: f.reduce,
     size: [f.W, f.H],
+    flakes: f.flakes.length,
+    puffs: f.puffs.length,
     checksum: checksum(f.canvas),
   }));
 }

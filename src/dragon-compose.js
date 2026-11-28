@@ -15,7 +15,7 @@
  */
 import { dragonLayers, dragonElement } from './dragon.js';
 import { PART_BY_ID } from './dragon-parts.js';
-import { AURA_META, auraSeed, auraSprite, silhouetteProfile } from './dragon-aura.js';
+import { AURA_META, auraSeed, auraSprite, silhouetteProfile, alphaCentroid } from './dragon-aura.js';
 
 // Six 768x960 layers per dragon is ~17MB decoded, and a 5-hatch run reveals one
 // dragon after another: keep a small LRU so a phone never holds every bitmap.
@@ -234,6 +234,28 @@ function bakedAura(ctx, w, h, imgs, element, seed, canBlur) {
     return silhouetteProfile(c);
   })();
 
+  // 3. where the face is — the eye layer's centroid is the reliable answer, so
+  //    the gentle elements can keep their light and big snow off it ---------
+  const face = (() => {
+    if (imgs.eyes) {
+      const c = scratchCanvas('auraFace', 80, 100);
+      const x = c.getContext('2d', { willReadFrequently: true });
+      x.clearRect(0, 0, 80, 100);
+      x.drawImage(imgs.eyes, 0, 0, 80, 100);
+      const cen = alphaCentroid(c);
+      if (cen) return { x: cen.x, y: cen.y, rx: 0.3, ry: 0.24 };
+    }
+    if (prof && prof.head) return { x: prof.head.x + 0.03, y: Math.min(0.92, prof.head.y + 0.14), rx: 0.3, ry: 0.24 };
+    return null;
+  })();
+  const faceFade = (x, y, strength) => {
+    if (!face) return 1;
+    const nx = (x - face.x * w) / (face.rx * w);
+    const ny = (y - face.y * h) / (face.ry * h);
+    const d = Math.min(1, Math.sqrt(nx * nx + ny * ny));
+    return 1 - strength * 0.5 * (1 + Math.cos(Math.PI * d));
+  };
+
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
 
@@ -280,51 +302,91 @@ function bakedAura(ctx, w, h, imgs, element, seed, canBlur) {
     ctx.fillStyle = wash;
     ctx.fillRect(0, 0, w, h);
   } else if (element === 'ice') {
-    // wind-blown streaks across the plate, like the sketch
-    ctx.lineCap = 'round';
-    for (let i = 0; i < 26; i++) {
-      const x = rand() * w * 1.1 - w * 0.05;
-      const y = rand() * h * 1.05 - h * 0.02;
-      const len = (6 + rand() * 26) * unit;
-      const a = 0.16 + rand() * 0.42;
-      ctx.globalAlpha = a * 0.3;
-      ctx.strokeStyle = 'rgba(206,240,255,1)';
-      ctx.lineWidth = 3.2 * unit;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x - len * 0.42, y + len);
-      ctx.stroke();
-      ctx.globalAlpha = a;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.1 * unit;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x - len * 0.42, y + len);
-      ctx.stroke();
-    }
+    // a real blizzard, painted: soft snow in three sizes and freezing haze —
+    // never a straight streak (those read as rain, not snow)
     const dot = auraSprite('dot', M.rgb);
-    for (let i = 0; i < 18; i++) {
-      const r = (2 + rand() * 5) * unit;
-      ctx.globalAlpha = 0.35 + rand() * 0.4;
-      ctx.drawImage(dot, rand() * w - r, rand() * h - r, r * 2, r * 2);
+    const snow = auraSprite('snow', M.rgb);
+    const mist = auraSprite('mist', M.rgb);
+    ctx.globalCompositeOperation = 'source-over';
+    for (let i = 0; i < 5; i++) {
+      const rw = (60 + rand() * 80) * unit;
+      const rh = rw * (0.2 + rand() * 0.16);
+      ctx.globalAlpha = 0.05 + rand() * 0.05;
+      ctx.drawImage(mist, rand() * w - rw * 0.5, h * (0.45 + rand() * 0.6) - rh * 0.5, rw, rh);
+    }
+    for (let i = 0; i < 90; i++) {
+      const t = rand();
+      const puff = t > 0.93;
+      const flake = t > 0.55 && !puff;
+      const r = puff ? (6 + rand() * 8) * unit : flake ? (2.2 + rand() * 2.4) * unit : (1 + rand() * 1.6) * unit;
+      const x = rand() * w;
+      const y = rand() * h;
+      let a = puff ? 0.07 + rand() * 0.06 : flake ? 0.34 + rand() * 0.34 : 0.26 + rand() * 0.3;
+      if (puff || flake) a *= faceFade(x, y, puff ? 0.72 : 0.4);
+      ctx.globalAlpha = a;
+      const rr = r * (puff ? 2.6 : 3.1);
+      ctx.drawImage(snow, x - rr * 0.5, y - rr * 0.5, rr, rr);
+    }
+    // a little icy sparkle where the flakes catch the light
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 16; i++) {
+      const r = (1.4 + rand() * 2) * unit;
+      const x = rand() * w;
+      const y = rand() * h;
+      ctx.globalAlpha = (0.2 + rand() * 0.25) * faceFade(x, y, 0.5);
+      ctx.drawImage(dot, x - r * 1.6, y - r * 1.6, r * 3.2, r * 3.2);
     }
   } else if (element === 'forest') {
-    const beam = auraSprite('beam', '255,226,150');
-    for (let i = 0; i < 6; i++) {
-      const bx = w * (0.55 + rand() * 0.55);
-      const bw = (26 + rand() * 54) * unit;
-      ctx.save();
-      ctx.translate(bx, -h * 0.04);
-      ctx.rotate(-0.62 + (rand() - 0.5) * 0.2);
-      ctx.globalAlpha = 0.14 + rand() * 0.12;
-      ctx.drawImage(beam, -bw / 2, 0, bw, h * 1.25);
-      ctx.restore();
-    }
+    // soft afternoon light from the top-back corner: radial falloff only, and
+    // feathered away from the face so the eyes stay readable
     const dot = auraSprite('dot', M.rgb);
-    for (let i = 0; i < 22; i++) {
-      const r = (1.8 + rand() * 4) * unit;
-      ctx.globalAlpha = 0.3 + rand() * 0.45;
-      ctx.drawImage(dot, rand() * w - r, rand() * h * 0.95 - r, r * 2, r * 2);
+    const mist = auraSprite('mist', '255,236,182');
+    const light = scratchCanvas('auraLight', w, h);
+    const lc = light.getContext('2d');
+    lc.clearRect(0, 0, w, h);
+    const sunX = w * 0.93;
+    const sunY = -h * 0.06;
+    const R = Math.max(w, h) * 0.95;
+    const g1 = lc.createRadialGradient(sunX, sunY, 0, sunX, sunY, R);
+    g1.addColorStop(0, 'rgba(255,242,196,0.34)');
+    g1.addColorStop(0.28, 'rgba(255,234,172,0.16)');
+    g1.addColorStop(0.6, 'rgba(255,226,150,0.055)');
+    g1.addColorStop(1, 'rgba(255,216,132,0)');
+    lc.fillStyle = g1;
+    lc.fillRect(0, 0, w, h);
+    const g2 = lc.createRadialGradient(w * 0.74, h * 0.05, 0, w * 0.74, h * 0.05, R * 0.55);
+    g2.addColorStop(0, 'rgba(255,238,178,0.1)');
+    g2.addColorStop(0.55, 'rgba(255,228,150,0.04)');
+    g2.addColorStop(1, 'rgba(255,220,140,0)');
+    lc.fillStyle = g2;
+    lc.fillRect(0, 0, w, h);
+    if (face) {
+      lc.save();
+      lc.globalCompositeOperation = 'destination-out';
+      lc.translate(face.x * w, face.y * h);
+      lc.scale(face.rx * w * 1.1, face.ry * h * 1.15);
+      const m = lc.createRadialGradient(0, 0, 0, 0, 0, 1);
+      m.addColorStop(0, 'rgba(0,0,0,0.82)');
+      m.addColorStop(0.55, 'rgba(0,0,0,0.5)');
+      m.addColorStop(1, 'rgba(0,0,0,0)');
+      lc.fillStyle = m;
+      lc.fillRect(-1, -1, 2, 2);
+      lc.restore();
+    }
+    ctx.globalAlpha = 1;
+    ctx.drawImage(light, 0, 0);
+    for (let i = 0; i < 26; i++) {
+      const r = (1.2 + rand() * 2.2) * unit;
+      const x = rand() * w;
+      const y = rand() * h;
+      ctx.globalAlpha = (0.18 + rand() * 0.3) * faceFade(x, y, 0.6);
+      ctx.drawImage(dot, x - r * 1.6, y - r * 1.6, r * 3.2, r * 3.2);
+    }
+    for (let i = 0; i < 3; i++) {
+      const rw = (26 + rand() * 34) * unit;
+      const rh = rw * (0.5 + rand() * 0.3);
+      ctx.globalAlpha = 0.045 + rand() * 0.035;
+      ctx.drawImage(mist, rand() * w - rw * 0.5, h * (0.3 + rand() * 0.55) - rh * 0.5, rw, rh);
     }
   } else if (element === 'thunder') {
     // Baked sparks and an ionised rim: the live layer supplies the actual
@@ -590,6 +652,18 @@ export async function dragonSilhouette(dragon, base) {
   }
   const prof = any ? silhouetteProfile(c) : null;
   if (prof) {
+    // the eye's alpha centroid tells the live layer where the face is
+    const eyePart = PART_BY_ID[`eyes:${dragon.parts.eyes}`];
+    if (eyePart) {
+      const img = await loadImage(base + eyePart.img);
+      if (img) {
+        const ec = cv(80, 100);
+        const ex = ec.getContext('2d', { willReadFrequently: true });
+        ex.drawImage(img, 0, 0, 80, 100);
+        const cen = alphaCentroid(ec);
+        if (cen) prof.face = cen;
+      }
+    }
     silhouetteCache.set(key, prof);
     while (silhouetteCache.size > 24) silhouetteCache.delete(silhouetteCache.keys().next().value);
   }
