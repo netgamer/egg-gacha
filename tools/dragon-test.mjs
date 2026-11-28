@@ -62,9 +62,10 @@ async function attempt(name, ctxOpts, fn) {
 
 async function phase(name, ctxOpts, fn) {
   console.log(`\n=== ${name} ===`);
-  // this sandbox's software rasteriser runs out of shared memory on the
-  // heaviest phases; a renderer crash gets one retry before it counts
-  for (let n = 1; n <= 4; n++) {
+  // This sandbox's software rasteriser (SwiftShader in a 64MB shm container)
+  // segfaults intermittently on the heaviest phases — the unmodified app
+  // crashes there too. A renderer crash is retried before it counts as a fail.
+  for (let n = 1; n <= 5; n++) {
     const trial = [];
     sink = trial;
     const res = await attempt(name, ctxOpts, fn);
@@ -81,10 +82,10 @@ async function phase(name, ctxOpts, fn) {
       if (res.errors.length) failures.push(`${name}: ${res.errors.slice(0, 4).join(' | ')}`);
       return;
     }
-    notes.push(`${name}: 샌드박스 렌더러 크래시로 재시도 ${n}/3`);
-    console.log(`  (renderer crashed — retrying this phase, attempt ${n + 1}/4)`);
+    notes.push(`${name}: 샌드박스 렌더러 크래시로 재시도 ${n}/4`);
+    console.log(`  (renderer crashed — retrying this phase, attempt ${n + 1}/5)`);
   }
-  failures.push(`${name}: 샌드박스 렌더러가 세 번 크래시 (앱 오류 아님)`);
+  failures.push(`${name}: 샌드박스 렌더러가 네 번 크래시 (앱 오류 아님)`);
 }
 
 /* ------------------------------------------------------- 1. part assets */
@@ -564,15 +565,15 @@ await phase('mobile — 등급별 카드 베젤 (일반·희귀·영웅·전설)
     `테두리가 카드 라운드를 따라감 (${tiers.map((t) => `${grid[t].cardRadius}→${grid[t].bezelRadius}`).join(' · ')})`
   );
   ok(/conic-gradient/.test(grid.legendary.bezel), '전설 베젤 = 프리즘 conic-gradient');
-  ok(grid.legendary.anim === 'tierSpin', `전설 베젤 회전 애니메이션 (${grid.legendary.anim})`);
   ok(
     grid.legendary.sparkle === 'tierTwinkle',
     `전설 모서리 별빛 트윙클 (${grid.legendary.sparkle})`
   );
   ok(
     ['common', 'rare', 'epic'].every((t) => grid[t].anim === 'none'),
-    '일반·희귀·영웅 도감 베젤은 정적 (모바일 성능)'
+    '일반·희귀·영웅 베젤은 정적 (모바일 성능)'
   );
+  ok(grid.legendary.anim === 'tierSpin', `전설 프리즘 베젤 회전 (${grid.legendary.anim})`);
 
   // detail modal re-uses the same component: epic pulses, badges stay legible
   await page.click('#dragonGrid .dg[data-rarity="epic"]', { noWaitAfter: true });
@@ -642,14 +643,19 @@ await phase('mobile — 등급 베젤 · 동작 줄이기', { ...MOBILE, reduced
   await page.waitForTimeout(300);
   const look = await page.evaluate(() => {
     const el = document.querySelector('#revealCard .dc');
+    const art = el.querySelector('.dc-art');
     const after = getComputedStyle(el, '::after');
     return {
       anim: getComputedStyle(el).animationName,
+      sparkle: getComputedStyle(art, '::before').animationName,
       afterAnim: after.animationName,
       bezel: getComputedStyle(el).backgroundImage,
     };
   });
-  ok(look.anim === 'none' && look.afterAnim === 'none', `줄이기 설정에서 베젤 정지 (${look.anim}/${look.afterAnim})`);
+  ok(
+    look.anim === 'none' && look.afterAnim === 'none' && look.sparkle === 'none',
+    `줄이기 설정에서 베젤·별빛 정지 (${look.anim}/${look.sparkle}/${look.afterAnim})`
+  );
   ok(/conic-gradient/.test(look.bezel), '정지해도 프리즘 색은 그대로');
   ok(errors.length === 0, `오류 0 (${errors.join(' | ') || 'none'})`);
 });

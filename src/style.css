@@ -1541,12 +1541,6 @@ body {
    wherever it shows up. Colours are RGB triples so each shadow picks its own
    alpha; geometry (--rim-w, --radius, --bw) is set by the surface below. */
 
-@property --tier-angle {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
 /* 일반 — brushed silver/slate, minimal rim, no heavy glow */
 .dc[data-rarity='common'],
 .dg[data-rarity='common'] {
@@ -1558,7 +1552,7 @@ body {
   --art-ring: 190 204 224 / 0.2;
   --art-glow: 139 155 180 / 0.24;
   --halo-a: 0.18;
-  --card-bg: linear-gradient(165deg, rgba(44, 34, 62, 0.96), rgba(12, 9, 22, 0.99));
+  --card-bg: #151020;
 }
 
 /* 희귀 — sapphire/cyan double rim + cool blue halo */
@@ -1572,7 +1566,7 @@ body {
   --art-ring: 120 226 255 / 0.36;
   --art-glow: 63 200 255 / 0.4;
   --halo-a: 0.3;
-  --card-bg: linear-gradient(165deg, rgba(20, 44, 78, 0.96), rgba(6, 12, 26, 0.99));
+  --card-bg: #0b1727;
 }
 
 /* 영웅 — royal violet bezel with gold/magenta accents, thicker inner rim */
@@ -1586,7 +1580,7 @@ body {
   --art-ring: 210 165 255 / 0.4;
   --art-glow: 182 115 255 / 0.44;
   --halo-a: 0.32;
-  --card-bg: linear-gradient(150deg, rgba(54, 30, 92, 0.96), rgba(16, 8, 32, 0.99));
+  --card-bg: #1b0f2c;
 }
 
 /* 전설 — prismatic + gold holographic bezel, warm gold halo */
@@ -1600,7 +1594,13 @@ body {
   --art-ring: 255 230 150 / 0.48;
   --art-glow: 255 200 90 / 0.4;
   --halo-a: 0.34;
-  --card-bg: linear-gradient(155deg, rgba(62, 40, 20, 0.94), rgba(40, 18, 62, 0.97) 52%, rgba(16, 8, 30, 0.99));
+  --card-bg: #1d1122;
+}
+
+@property --tier-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
 }
 
 /* The bezel is the card's own border: the tier gradient fills the border box
@@ -1674,7 +1674,7 @@ body {
   border: 1px solid rgb(var(--art-ring));
   border-radius: 15px;
   overflow: hidden;
-  /* the portrait redraws every frame (live aura): keep its paint work inside
+  /* the portrait redraws every frame (live aura): keep that paint work inside
      the art box so the card frame is never re-rastered with it */
   contain: paint;
   background: #0a0616;
@@ -1709,6 +1709,9 @@ body {
   aspect-ratio: 4 / 5;
   border-radius: 15px;
   overflow: hidden;
+  /* the portrait redraws every frame (live aura): keep that paint work inside
+     the art box so the card frame is never re-rastered with it */
+  contain: paint;
   background: #0a0616;
 }
 
