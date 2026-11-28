@@ -62,7 +62,9 @@ async function attempt(name, ctxOpts, fn) {
 
 async function phase(name, ctxOpts, fn) {
   console.log(`\n=== ${name} ===`);
-  for (let n = 1; n <= 3; n++) {
+  // this sandbox's software rasteriser runs out of shared memory on the
+  // heaviest phases; a renderer crash gets one retry before it counts
+  for (let n = 1; n <= 4; n++) {
     const trial = [];
     sink = trial;
     const res = await attempt(name, ctxOpts, fn);
@@ -79,10 +81,10 @@ async function phase(name, ctxOpts, fn) {
       if (res.errors.length) failures.push(`${name}: ${res.errors.slice(0, 4).join(' | ')}`);
       return;
     }
-    notes.push(`${name}: 샌드박스 렌더러 크래시로 1회 재시도`);
-    console.log('  (renderer crashed — retrying this phase once)');
+    notes.push(`${name}: 샌드박스 렌더러 크래시로 재시도 ${n}/3`);
+    console.log(`  (renderer crashed — retrying this phase, attempt ${n + 1}/4)`);
   }
-  failures.push(`${name}: 샌드박스 렌더러가 두 번 크래시 (앱 오류 아님)`);
+  failures.push(`${name}: 샌드박스 렌더러가 세 번 크래시 (앱 오류 아님)`);
 }
 
 /* ------------------------------------------------------- 1. part assets */
@@ -495,6 +497,160 @@ await phase('desktop 1280x800 — 컬렉션 그리드', { viewport: { width: 128
   ok(g.cards === 12, `드래곤 12칸 (${g.cards})`);
   ok(g.cols === 3, `데스크톱 3열 그리드 (${g.cols})`);
   ok(g.scrollW <= g.vw, '가로 스크롤 없음');
+  ok(errors.length === 0, `오류 0 (${errors.join(' | ') || 'none'})`);
+});
+
+/* ------------------------------------------------ 6. rarity tier frames */
+await phase('mobile — 등급별 카드 베젤 (일반·희귀·영웅·전설)', MOBILE, async ({ page, errors, goto }) => {
+  await goto();
+  // one dragon per tier, with the rarity pinned (a dragon's rarity normally
+  // comes from its best part, so random hatches may miss a tier)
+  await page.evaluate(() => {
+    const G = window.__eggGacha;
+    const p = (id) => ({ bg: id, wings: id, body: id, eyes: id, horns: id, acc: id });
+    G.seedDragon('white', p('ivory'), 'common');
+    G.seedDragon('ice', p('frost'), 'rare');
+    G.seedDragon('thunder', p('storm'), 'epic');
+    G.seedDragon('diamond', p('prism'), 'legendary');
+  });
+  await page.click('#dexBtn', { noWaitAfter: true });
+  await page.waitForTimeout(250);
+  await page.click('#tabDragons', { noWaitAfter: true });
+  await page.waitForFunction(() => document.querySelectorAll('#dragonGrid .dg').length >= 4, null, { timeout: 20000 });
+  await page.waitForTimeout(700);
+
+  const grid = await page.evaluate(() => {
+    const read = (el) => {
+      const cs = getComputedStyle(el);
+      const after = getComputedStyle(el, '::after');
+      return {
+        rarity: el.dataset.rarity,
+        rim: parseFloat(cs.getPropertyValue('--rim-w')),
+        bw: parseFloat(cs.borderTopWidth),
+        cardRadius: parseFloat(cs.borderRadius),
+        bezelRadius: parseFloat(cs.borderTopLeftRadius),
+        bezel: cs.backgroundImage,
+        clip: cs.backgroundClip,
+        anim: cs.animationName,
+        afterAnim: after.animationName,
+        sparkle: getComputedStyle(el.querySelector('.dg-art'), '::before').animationName,
+      };
+    };
+    const out = {};
+    for (const el of document.querySelectorAll('#dragonGrid .dg')) {
+      if (!out[el.dataset.rarity]) out[el.dataset.rarity] = read(el);
+    }
+    return out;
+  });
+
+  const tiers = ['common', 'rare', 'epic', 'legendary'];
+  ok(tiers.every((t) => grid[t]), `도감에 네 등급 모두 표시 (${Object.keys(grid).join('·')})`);
+  const want = { common: 1.5, rare: 2, epic: 2.5, legendary: 2.5 };
+  ok(tiers.every((t) => Math.abs(grid[t].rim - want[t]) < 0.01), '등급별 베젤 두께 1.5/2/2.5/2.5px');
+  ok(
+    tiers.every((t) => grid[t].bw >= 1 && grid[t].bw <= grid[t].rim),
+    `도감 카드도 등급 베젤 (${tiers.map((t) => `${grid[t].bw}px`).join('/')})`
+  );
+  ok(
+    tiers.every((t) => /gradient/.test(grid[t].bezel) && /border-box/.test(grid[t].clip) && /padding-box/.test(grid[t].clip)),
+    '네 등급 모두 카드 테두리(border-box)에 칠한 그라디언트 링'
+  );
+  ok(
+    new Set(tiers.map((t) => grid[t].bezel)).size === 4,
+    '네 베젤이 서로 다른 그라디언트'
+  );
+  ok(
+    tiers.every((t) => grid[t].bezelRadius >= grid[t].cardRadius),
+    `테두리가 카드 라운드를 따라감 (${tiers.map((t) => `${grid[t].cardRadius}→${grid[t].bezelRadius}`).join(' · ')})`
+  );
+  ok(/conic-gradient/.test(grid.legendary.bezel), '전설 베젤 = 프리즘 conic-gradient');
+  ok(grid.legendary.anim === 'tierSpin', `전설 베젤 회전 애니메이션 (${grid.legendary.anim})`);
+  ok(
+    grid.legendary.sparkle === 'tierTwinkle',
+    `전설 모서리 별빛 트윙클 (${grid.legendary.sparkle})`
+  );
+  ok(
+    ['common', 'rare', 'epic'].every((t) => grid[t].anim === 'none'),
+    '일반·희귀·영웅 도감 베젤은 정적 (모바일 성능)'
+  );
+
+  // detail modal re-uses the same component: epic pulses, badges stay legible
+  await page.click('#dragonGrid .dg[data-rarity="epic"]', { noWaitAfter: true });
+  await page.waitForSelector('#detailBox .dc', { timeout: 20000 });
+  await page.waitForTimeout(350);
+  const card = await page.evaluate(() => {
+    const el = document.querySelector('#detailBox .dc');
+    const before = getComputedStyle(el, '::before');
+    const after = getComputedStyle(el, '::after');
+    const badges = [...el.querySelectorAll('.dc-badge')].map((b) => {
+      const bs = getComputedStyle(b);
+      const r = b.getBoundingClientRect();
+      const art = el.querySelector('.dc-art').getBoundingClientRect();
+      return {
+        size: parseFloat(bs.fontSize),
+        inside: r.top >= art.top - 1 && r.right <= art.right + 1,
+        contrast: (() => {
+          const lum = (c) => {
+            const v = (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number).map((n) => {
+              const s = n / 255;
+              return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+          };
+          const [x, y] = [lum(bs.color), lum(bs.backgroundColor)].sort((m, n) => n - m);
+          return Number(((x + 0.05) / (y + 0.05)).toFixed(1));
+        })(),
+      };
+    });
+    return {
+      rarity: el.dataset.rarity,
+      rim: parseFloat(getComputedStyle(el).getPropertyValue('--rim-w')),
+      bezel: getComputedStyle(el).backgroundImage,
+      clip: getComputedStyle(el).backgroundClip,
+      anim: getComputedStyle(el).animationName,
+      afterAnim: after.animationName,
+      badges,
+      frameInside: (() => {
+        const r = el.getBoundingClientRect();
+        const pad = parseFloat(before.paddingTop) + 1;
+        return r.left - pad >= 0 && r.right + pad <= innerWidth;
+      })(),
+      pageScroll: document.documentElement.scrollWidth - innerWidth,
+    };
+  });
+  ok(card.rarity === 'epic' && card.rim === 2.5, `상세 카드도 등급 베젤 (${card.rarity} ${card.rim}px)`);
+  ok(/gradient/.test(card.bezel) && /border-box/.test(card.clip), '상세 카드 베젤 링 적용');
+  ok(card.afterAnim === 'tierPulse', `영웅 카드 보랏빛 맥동 (${card.afterAnim})`);
+  ok(card.badges.length === 2 && card.badges.every((b) => b.inside && b.size >= 9), '등급·속성 배지가 아트 안에서 유지');
+  ok(
+    card.badges.every((b) => b.contrast >= 4.5),
+    `배지 글자 대비 ${card.badges.map((b) => b.contrast).join('/')}:1 (4.5 이상)`
+  );
+  ok(card.frameInside && card.pageScroll <= 0, '베젤이 화면 밖으로 넘치지 않고 가로 스크롤 없음');
+  ok(errors.length === 0, `오류 0 (${errors.join(' | ') || 'none'})`);
+});
+
+/* -------------------------------------- 6b. tier frames under reduced motion */
+await phase('mobile — 등급 베젤 · 동작 줄이기', { ...MOBILE, reducedMotion: 'reduce' }, async ({ page, errors, goto }) => {
+  await goto();
+  await page.evaluate(() => {
+    const G = window.__eggGacha;
+    const p = (id) => ({ bg: id, wings: id, body: id, eyes: id, horns: id, acc: id });
+    G.openRevealById(G.seedDragon('diamond', p('prism'), 'legendary'));
+  });
+  await page.waitForSelector('#revealCard .dc', { timeout: 20000 });
+  await page.waitForTimeout(300);
+  const look = await page.evaluate(() => {
+    const el = document.querySelector('#revealCard .dc');
+    const after = getComputedStyle(el, '::after');
+    return {
+      anim: getComputedStyle(el).animationName,
+      afterAnim: after.animationName,
+      bezel: getComputedStyle(el).backgroundImage,
+    };
+  });
+  ok(look.anim === 'none' && look.afterAnim === 'none', `줄이기 설정에서 베젤 정지 (${look.anim}/${look.afterAnim})`);
+  ok(/conic-gradient/.test(look.bezel), '정지해도 프리즘 색은 그대로');
   ok(errors.length === 0, `오류 0 (${errors.join(' | ') || 'none'})`);
 });
 

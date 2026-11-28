@@ -1535,35 +1535,173 @@ body {
   margin: 0 auto 2px;
 }
 
+/* --------------------------------------------------------- rarity bezel -- */
+/* One frame system for every dragon card. The reveal modal, the detail modal
+   and the dex grid all read these tokens, so a tier reads as the same tier
+   wherever it shows up. Colours are RGB triples so each shadow picks its own
+   alpha; geometry (--rim-w, --radius, --bw) is set by the surface below. */
+
+@property --tier-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* 일반 — brushed silver/slate, minimal rim, no heavy glow */
+.dc[data-rarity='common'],
+.dg[data-rarity='common'] {
+  --rim-w: 1.5px;
+  --rim-grad: linear-gradient(152deg, #e8eff8 0%, #b3c1d4 15%, #7c8ba0 33%, #dae3f0 50%, #98a7bc 68%, #cbd6e6 86%, #8593a8 100%);
+  --g: 139 155 180;
+  --ring-1: 226 236 248 / 0.22;
+  --ring-2: 64 76 94 / 0.42;
+  --art-ring: 190 204 224 / 0.2;
+  --art-glow: 139 155 180 / 0.24;
+  --halo-a: 0.18;
+  --card-bg: linear-gradient(165deg, rgba(44, 34, 62, 0.96), rgba(12, 9, 22, 0.99));
+}
+
+/* 희귀 — sapphire/cyan double rim + cool blue halo */
+.dc[data-rarity='rare'],
+.dg[data-rarity='rare'] {
+  --rim-w: 2px;
+  --rim-grad: linear-gradient(150deg, #d8f7ff 0%, #5fd8ff 18%, #2fb3e8 42%, #a5efff 58%, #41c4f5 78%, #e2fbff 100%);
+  --g: 63 200 255;
+  --ring-1: 150 235 255 / 0.32;
+  --ring-2: 8 38 70 / 0.55;
+  --art-ring: 120 226 255 / 0.36;
+  --art-glow: 63 200 255 / 0.4;
+  --halo-a: 0.3;
+  --card-bg: linear-gradient(165deg, rgba(20, 44, 78, 0.96), rgba(6, 12, 26, 0.99));
+}
+
+/* 영웅 — royal violet bezel with gold/magenta accents, thicker inner rim */
+.dc[data-rarity='epic'],
+.dg[data-rarity='epic'] {
+  --rim-w: 2.5px;
+  --rim-grad: linear-gradient(142deg, #f2e4ff 0%, #b673ff 16%, #ffcf7a 30%, #e256a8 45%, #a75cff 62%, #dcbeff 80%, #c07dff 100%);
+  --g: 182 115 255;
+  --ring-1: 255 214 140 / 0.28;
+  --ring-2: 44 16 84 / 0.62;
+  --art-ring: 210 165 255 / 0.4;
+  --art-glow: 182 115 255 / 0.44;
+  --halo-a: 0.32;
+  --card-bg: linear-gradient(150deg, rgba(54, 30, 92, 0.96), rgba(16, 8, 32, 0.99));
+}
+
+/* 전설 — prismatic + gold holographic bezel, warm gold halo */
+.dc[data-rarity='legendary'],
+.dg[data-rarity='legendary'] {
+  --rim-w: 2.5px;
+  --rim-grad: linear-gradient(100deg, #ffe9a6, #ffd24d 18%, #ff8fb0 40%, #b06bff 58%, #4cd8ff 76%, #6dff9b 88%, #ffd24d);
+  --g: 255 210 77;
+  --ring-1: 255 236 170 / 0.7;
+  --ring-2: 120 78 24 / 0.3;
+  --art-ring: 255 230 150 / 0.48;
+  --art-glow: 255 200 90 / 0.4;
+  --halo-a: 0.34;
+  --card-bg: linear-gradient(155deg, rgba(62, 40, 20, 0.94), rgba(40, 18, 62, 0.97) 52%, rgba(16, 8, 30, 0.99));
+}
+
+/* The bezel is the card's own border: the tier gradient fills the border box
+   while the card background fills the padding box, so the ring follows the
+   rounded corner — no mask, no white square corner, and cheap to re-paint
+   when a legendary ring turns. */
+.dc[data-rarity='legendary'],
+.dg[data-rarity='legendary'] {
+  --tier-angle: 0deg;
+  background: conic-gradient(
+      from var(--tier-angle),
+      #ff3f6e,
+      #ff8a3c,
+      #ffe14d,
+      #6bff9b,
+      #35dcff,
+      #8a63ff,
+      #ff63d4,
+      #ff3f6e
+    ) border-box,
+    var(--card-bg) padding-box;
+  animation: tierSpin 9s linear infinite;
+}
+
+@keyframes tierSpin {
+  to {
+    --tier-angle: 360deg;
+  }
+}
+
+/* 영웅 전용: 보랏빛 광원이 천천히 숨쉰다 (opacity만 움직여 합성 단계에서 처리) */
+.dc[data-rarity='epic']::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--bw) * -1);
+  border-radius: calc(var(--radius) + var(--bw));
+  box-shadow: 0 0 32px 3px rgba(182, 115, 255, 0.36), 0 0 74px 12px rgba(140, 60, 220, 0.16);
+  opacity: 0.45;
+  animation: tierPulse 4.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes tierPulse {
+  0%, 100% { opacity: 0.42; }
+  50% { opacity: 1; }
+}
+
 /* ----------------------------------------------------------- dragon card -- */
 
 .dc {
   --rar: #a9b8cf;
+  --radius: 22px;
+  --bw: var(--rim-w);
   position: relative;
-  border-radius: 22px;
+  border: var(--bw) solid transparent;
+  border-radius: calc(var(--radius) + var(--bw));
   padding: 9px;
-  background: linear-gradient(165deg, rgba(48, 32, 82, 0.96), rgba(12, 8, 26, 0.99));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rar) 62%, transparent),
-    0 0 34px color-mix(in srgb, var(--rar) 26%, transparent), 0 18px 44px rgba(0, 0, 0, 0.6);
+  background: var(--rim-grad, linear-gradient(152deg, #e8eff8, #8b9bb4 45%, #7c8ba0)) border-box,
+    var(--card-bg) padding-box;
+  box-shadow: inset 0 0 0 3.5px rgb(var(--ring-2)), inset 0 0 0 4.5px rgb(var(--ring-1)),
+    0 0 0 1px rgb(var(--g) / 0.34),
+    0 0 24px rgb(var(--g) / var(--halo-a)),
+    0 18px 44px rgba(0, 0, 0, 0.6);
 }
 
-.dc[data-rarity='legendary'] {
-  background: linear-gradient(150deg, #3a1f5e, #1a0f38 55%, #2a1030);
+/* the portrait's inner rim is a plain border (no blurred shadow layer, no
+   extra pseudo element), so a card stays cheap to repaint on a phone */
+.dc-art {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  border: 1px solid rgb(var(--art-ring));
+  border-radius: 15px;
+  overflow: hidden;
+  /* the portrait redraws every frame (live aura): keep its paint work inside
+     the art box so the card frame is never re-rastered with it */
+  contain: paint;
+  background: #0a0616;
 }
 
-.dc[data-rarity='legendary']::before {
+/* 전설 전용: 네 모서리의 별빛 (공개·상세·도감 공통, 크기는 카드에 비례) */
+.dc[data-rarity='legendary'] .dc-art::before,
+.dg[data-rarity='legendary'] .dg-art::before {
   content: '';
   position: absolute;
-  inset: -1px;
-  border-radius: 23px;
-  padding: 1px;
-  background: linear-gradient(120deg, #ff6b8a, #ffd24a, #6dff9b, #4cd8ff, #b06bff, #ff6b8a);
-  background-size: 280% 280%;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  animation: hueSlide 3.4s linear infinite;
+  inset: 0;
+  z-index: 4;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 1px, rgba(255, 232, 150, 0.55) 2px, rgba(255, 232, 150, 0) 6px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 1px, rgba(255, 210, 130, 0.5) 2px, rgba(255, 210, 130, 0) 5px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 1px, rgba(255, 210, 130, 0.5) 2px, rgba(255, 210, 130, 0) 5px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 1px, rgba(255, 232, 150, 0.55) 2px, rgba(255, 232, 150, 0) 6px);
+  background-repeat: no-repeat;
+  background-position: 4% 4%, 96% 5%, 5% 95%, 95% 95%;
+  background-size: 9% 7%, 7% 6%, 7% 6%, 9% 7%;
+  opacity: 0.85;
+  animation: tierTwinkle 4.2s ease-in-out infinite;
   pointer-events: none;
+}
+
+@keyframes tierTwinkle {
+  0%, 100% { opacity: 0.5; }
+  45% { opacity: 1; }
 }
 
 .dc-art {
@@ -1572,7 +1710,6 @@ body {
   border-radius: 15px;
   overflow: hidden;
   background: #0a0616;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .dc-art img,
@@ -1659,13 +1796,14 @@ body {
   letter-spacing: 0.04em;
   color: #0b0614;
   background: var(--rar);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.38);
 }
 
 .dc-badge.ghost {
-  background: rgba(10, 6, 20, 0.55);
-  color: #efe6ff;
+  background: rgba(8, 5, 18, 0.72);
+  color: #f3ecff;
   border: 1px solid color-mix(in srgb, var(--rar) 55%, transparent);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .dc-meta {
@@ -1827,15 +1965,22 @@ body {
 
 .dg {
   --rar: #a9b8cf;
+  /* grid cards re-use the tier tokens but with a finer bezel so the frame
+     stays crisp at thumbnail size */
+  --radius: 14px;
+  --bw: max(1.4px, calc(var(--rim-w) * 0.85));
   position: relative;
   display: block;
   width: 100%;
-  border: 0;
+  border: var(--bw) solid transparent;
   font-family: inherit;
   padding: 5px;
-  border-radius: 14px;
-  background: linear-gradient(160deg, rgba(40, 28, 68, 0.92), rgba(12, 8, 26, 0.95));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rar) 45%, transparent), 0 6px 16px rgba(0, 0, 0, 0.35);
+  border-radius: calc(var(--radius) + var(--bw));
+  background: var(--rim-grad, linear-gradient(152deg, #e8eff8, #8b9bb4 45%, #7c8ba0)) border-box,
+    var(--card-bg) padding-box;
+  box-shadow: inset 0 0 0 3px rgb(var(--ring-2)), inset 0 0 0 4px rgb(var(--ring-1)),
+    0 0 0 1px rgb(var(--g) / 0.3), 0 0 14px rgb(var(--g) / calc(var(--halo-a) * 0.85)),
+    0 6px 16px rgba(0, 0, 0, 0.35);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
@@ -1851,8 +1996,10 @@ body {
   display: block;
   position: relative;
   aspect-ratio: 4 / 5;
+  border: 1px solid rgb(var(--art-ring));
   border-radius: 10px;
   overflow: hidden;
+  contain: paint;
   background: #080512;
 }
 
@@ -1992,8 +2139,16 @@ body {
   .hatch-cue,
   .hatch-cue .hc-burst,
   .chip.pending,
-  .egg-glow,
-  .dc[data-rarity='legendary']::before {
+  .egg-glow {
+    animation: none !important;
+  }
+
+  /* the tier frames keep their full colour, they just hold still */
+  .dc[data-rarity='legendary'],
+  .dg[data-rarity='legendary'],
+  .dc::after,
+  .dg[data-rarity='legendary'] .dg-art::before,
+  .dc[data-rarity='legendary'] .dc-art::before {
     animation: none !important;
   }
 }

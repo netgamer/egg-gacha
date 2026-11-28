@@ -15,6 +15,7 @@
     "dragon": "node tools/dragon-test.mjs",
     "parts": "python3 tools/proto-art/pipeline.py parts",
     "shots:dragon": "node tools/dragon-shots.mjs",
+    "shots:tiers": "node tools/tier-shots.mjs",
     "parts:export": "python3 tools/proto-art/pipeline.py export",
     "parts:variants": "python3 tools/proto-art/gen.py",
     "parts:atlas": "python3 tools/proto-art/pipeline.py atlas",

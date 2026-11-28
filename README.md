@@ -7,6 +7,10 @@
 | --- | --- |
 | ![reveal](shots/real-reveal-mobile.png) | ![dex](shots/real-dex-mobile.png) |
 
+| 등급별 테두리 — 일반 · 희귀 · 영웅 · 전설 (모바일 도감) |
+| --- |
+| ![tiers](shots/tier-dex-mobile.png) |
+
 | 12가지 테마 드래곤 | 크로스 테마 조합 8종 |
 | --- | --- |
 | ![themes](shots/proto-real-dragon-themes.png) | ![grid](shots/proto-real-dragon-grid.png) |
@@ -111,7 +115,27 @@ affinity overall 0.7997 · bg 0.802 wings 0.795 body 0.799 eyes 0.804 horns 0.80
 공개·상세 카드에는 이 살아있는 층이, 도감 썸네일에는 같은 팔레트의 **구운(정지) 오라**가 들어가
 그리드가 수십 장이어도 60fps를 유지합니다.
 
-### 4. 그 외
+### 4. 등급별 카드 테두리 (`src/style.css`)
+
+공개 모달·상세 모달·도감 그리드가 **같은 테두리 토큰**을 씁니다. 등급마다 `--rim-w`(두께), `--rim-grad`(베젤 그라디언트),
+`--g`(광원 RGB), `--ring-1/--ring-2`(안쪽 홈과 헤어라인), `--art-ring/--art-glow`(아트 안쪽 림), `--halo-a`(바깥 광량),
+`--card-bg`(카드 바탕)를 정하고, 카드 쪽 규칙은 그 토큰만 읽습니다.
+
+| 등급 | 베젤 | 안쪽 | 빛 |
+| --- | --- | --- | --- |
+| 일반 | 1.5px 브러시드 실버/슬레이트 | 얇은 회색 홈 + 헤어라인 | 거의 없음 (은은한 회색) |
+| 희귀 | 2px 사파이어·시안 | 네이비 홈 + 시안 헤어라인 (이중 림) | 차가운 파란 글로우 |
+| 영웅 | 2.5px 로열 바이올렛 + 금·마젠타 | 짙은 보라 홈 + 금 헤어라인 | 보랏빛 맥동 (`opacity`만 움직여 합성 단계) |
+| 전설 | 2.5px 프리즘 conic(회전) + 금빛 홈 | 앰버 홈 + 금 헤어라인 | 금빛 후광 + 네 모서리 별빛 |
+
+베젤은 카드의 **보더**입니다. 등급 그라디언트를 `border-box`에, 카드 바탕을 `padding-box`에 칠하면 테두리 영역에만
+그라디언트가 남아 라운드 코너를 그대로 따르고 흰 사각 모서리가 생기지 않습니다(마스크 불필요).
+전설은 `@property --tier-angle`로 프리즘 conic을 9초에 한 바퀴 돌리고, 별빛과 영웅의 맥동은 `opacity`만 움직여
+합성 단계에서 처리합니다. 카드마다 칠하는 층도 최소로 유지했습니다(그라디언트 2장 + inset 링 2개 + 아트 보더).
+5연속 부화처럼 카드가 연달아 그려지는 화면에서 프레임 때문에 렌더러가 버티지 못하던 문제를 이 구성으로 잡았습니다.
+`prefers-reduced-motion: reduce`에서는 색은 그대로 두고 회전·별빛·맥동만 멈춥니다.
+
+### 5. 그 외
 
 - **3D 카드 룰렛** — `perspective` 안의 `translate3d + rotateY + scale` 릴, 가속→감속→스냅.
 - **연출** — Canvas 선버스트·번개·파티클·충격파·플래시·셰이크, 부화 크랙, 등급별 팡파레(Web Audio 합성).
@@ -127,6 +151,7 @@ npm test         # 알 가챠 회귀 테스트 (헤드리스)
 npm run dragon   # 파츠·80% 친화·부화·도감 테스트
 npm test:all     # 위 두 개
 npm run shots:dragon
+npm run shots:tiers   # 등급별 테두리 4종 (공개·상세·도감)
 npm run live     # 배포본 라이브 검증
 ```
 
@@ -160,7 +185,7 @@ src/
 public/parts/           72 파츠 + thumb/ 192×240 썸네일
 tools/
   proto-art/            마스터 앵커 · 생성 · 매트/합성 파이프라인
-  test.mjs / dragon-test.mjs / dragon-shots.mjs / live-check.mjs
+  test.mjs / dragon-test.mjs / dragon-shots.mjs / tier-shots.mjs / live-check.mjs
 shots/                  스크린샷
 ```
 

@@ -802,8 +802,8 @@ window.__eggGacha = {
   openHatch,
   closeHatch,
   auraStats,
-  seedDragon: (egg, parts) => {
-    const d = dragons.add({ egg: egg || 'white', parts: { ...parts }, rarity: 'rare', affinity: 1 });
+  seedDragon: (egg, parts, rarity = 'rare') => {
+    const d = dragons.add({ egg: egg || 'white', parts: { ...parts }, rarity, affinity: 1 });
     updateHud();
     return d.id;
   },
