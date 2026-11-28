@@ -7,3 +7,4 @@ shots/tmp-*
 shots/z*.png
 
 build/
+.tools/
